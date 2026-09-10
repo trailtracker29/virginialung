@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Patient Portal — AI Workflow Engine</title>
+  <meta name="description" content="Submit and manage your administrative requests quickly and easily. AI-assisted intake for a faster, smoother experience.">
+  <link rel="stylesheet" href="css/global.css">
+  <link rel="stylesheet" href="css/patient.css">
+</head>
+<body class="patient-body">
+
+  <!-- Role Switcher -->
+  <div class="role-switcher" id="roleSwitcher">
+    <span class="role-switcher__label">Demo Mode</span>
+    <button class="role-btn active" onclick="window.location.href='patient.html'" id="rolePatient">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+      Patient
+    </button>
+    <button class="role-btn" onclick="window.location.href='staff.html'" id="roleStaff">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 9h6M9 12h6M9 15h4"/></svg>
+      Staff
+    </button>
+  </div>
+
+  <!-- Header -->
+  <header class="patient-header">
+    <div class="patient-header__inner">
+      <div class="patient-header__brand">
+        <div class="brand-mark">⬡</div>
+        <div>
+          <div class="brand-name">FlowDesk</div>
+          <div class="brand-tagline">Administrative Intake Portal</div>
+        </div>
+      </div>
+      <nav class="patient-header__nav">
+        <a href="#" class="nav-link active" id="navNewRequest" onclick="showView('viewRequest'); return false;">New Request</a>
+        <a href="#" class="nav-link" id="navCaseStatus" onclick="showView('viewCaseStatus'); return false;">My Cases</a>
+        <a href="#" class="nav-link">Help</a>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="patient-container">
+
+    <!-- ═══════════════════════════════════════════════════════════════════════
+         VIEW: New Request Flow (Steps 1–7)
+    ════════════════════════════════════════════════════════════════════════════ -->
+    <div id="viewRequest" class="patient-view is-active">
+
+      <!-- ── Step 1: Welcome / Request Type ── -->
+      <div id="step1" class="step-section">
+        <div class="welcome-hero">
+          <div class="welcome-hero__icon">⬡</div>
+          <h1>How can we help?</h1>
+          <p>Select the type of request you'd like to submit. We'll guide you through the rest.</p>
+        </div>
+
+        <div class="request-types" id="requestTypesGrid">
+          <button class="request-type-card" data-type="new_patient" data-label="New Patient Request" onclick="selectRequestType(this)">
+            <div class="request-type-card__icon">🆕</div>
+            <div class="request-type-card__title">New Patient Request</div>
+            <div class="request-type-card__desc">Register as a new patient and schedule your first appointment</div>
+          </button>
+          <button class="request-type-card" data-type="schedule" data-label="Schedule an Appointment" onclick="selectRequestType(this)">
+            <div class="request-type-card__icon">📅</div>
+            <div class="request-type-card__title">Schedule an Appointment</div>
+            <div class="request-type-card__desc">Book a new appointment with a provider</div>
+          </button>
+          <button class="request-type-card" data-type="reschedule" data-label="Reschedule an Appointment" onclick="selectRequestType(this)">
+            <div class="request-type-card__icon">🔄</div>
+            <div class="request-type-card__title">Reschedule an Appointment</div>
+            <div class="request-type-card__desc">Change the time or date of an existing appointment</div>
+          </button>
+          <button class="request-type-card" data-type="referral" data-label="Referral / Authorization" onclick="selectRequestType(this)">
+            <div class="request-type-card__icon">📋</div>
+            <div class="request-type-card__title">Referral / Authorization</div>
+            <div class="request-type-card__desc">Submit or follow up on a specialist referral</div>
+          </button>
+          <button class="request-type-card" data-type="billing" data-label="Insurance / Billing" onclick="selectRequestType(this)">
+            <div class="request-type-card__icon">💳</div>
+            <div class="request-type-card__title">Insurance / Billing</div>
+            <div class="request-type-card__desc">Questions about insurance, billing, or payments</div>
+          </button>
+          <button class="request-type-card" data-type="documents" data-label="Upload Documents" onclick="selectRequestType(this)">
+            <div class="request-type-card__icon">📎</div>
+            <div class="request-type-card__title">Upload Documents</div>
+            <div class="request-type-card__desc">Send insurance cards, referrals, or other documents</div>
+          </button>
+          <button class="request-type-card" data-type="existing" data-label="Existing Patient Request" onclick="selectRequestType(this)">
+            <div class="request-type-card__icon">👤</div>
+            <div class="request-type-card__title">Existing Patient</div>
+            <div class="request-type-card__desc">Follow up, update information, or make a general request</div>
+          </button>
+          <button class="request-type-card" data-type="other" data-label="Other Administrative Request" onclick="selectRequestType(this)">
+            <div class="request-type-card__icon">💬</div>
+            <div class="request-type-card__title">Other Request</div>
+            <div class="request-type-card__desc">Something else? Describe your request and we'll help</div>
+          </button>
+        </div>
+
+        <div style="text-align:center; margin-top: 32px;">
+          <button class="btn btn--primary btn--lg" id="step1NextBtn" onclick="goToStep2()" disabled>
+            Continue
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- ── Steps 2–7 wrapper ── -->
+      <div id="stepsWrapper" class="hidden">
+
+        <!-- Progress Bar -->
+        <div class="progress-bar" id="progressBar">
+          <div class="progress-step-item">
+            <div class="progress-step__circle" id="prog1">1</div>
+            <div class="progress-step__label">Request</div>
+          </div>
+          <div class="progress-step__connector"></div>
+          <div class="progress-step-item">
+            <div class="progress-step__circle" id="prog2">2</div>
+            <div class="progress-step__label">Info</div>
+          </div>
+          <div class="progress-step__connector"></div>
+          <div class="progress-step-item">
+            <div class="progress-step__circle" id="prog3">3</div>
+            <div class="progress-step__label">Details</div>
+          </div>
+          <div class="progress-step__connector"></div>
+          <div class="progress-step-item">
+            <div class="progress-step__circle" id="prog4">4</div>
+            <div class="progress-step__label">Check</div>
+          </div>
+          <div class="progress-step__connector"></div>
+          <div class="progress-step-item">
+            <div class="progress-step__circle" id="prog5">5</div>
+            <div class="progress-step__label">Documents</div>
+          </div>
+          <div class="progress-step__connector"></div>
+          <div class="progress-step-item">
+            <div class="progress-step__circle" id="prog6">6</div>
+            <div class="progress-step__label">Review</div>
+          </div>
+          <div class="progress-step__connector"></div>
+          <div class="progress-step-item">
+            <div class="progress-step__circle" id="prog7">7</div>
+            <div class="progress-step__label">Done</div>
+          </div>
+        </div>
+
+        <!-- ── Step 2: Basic Information ── -->
+        <div id="step2" class="step-card hidden">
+          <div class="step-card__header">
+            <div class="step-card__subtitle">Step 2 of 6</div>
+            <h2 class="step-card__title">Your Information</h2>
+            <p class="step-card__desc">We need a few details to identify you and get in touch.</p>
+          </div>
+          <div class="step-card__body">
+            <div class="form-grid">
+              <div class="form-grid form-grid--2">
+                <div class="form-group">
+                  <label class="form-label" for="firstName">First Name <span class="required">*</span></label>
+                  <input type="text" id="firstName" class="form-input" placeholder="Jane" autocomplete="given-name">
+                  <span class="form-error hidden" id="firstNameErr">Please enter your first name</span>
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="lastName">Last Name <span class="required">*</span></label>
+                  <input type="text" id="lastName" class="form-input" placeholder="Smith" autocomplete="family-name">
+                  <span class="form-error hidden" id="lastNameErr">Please enter your last name</span>
+                </div>
+              </div>
+
+              <div class="form-grid form-grid--2">
+                <div class="form-group">
+                  <label class="form-label" for="dob">Date of Birth <span class="required">*</span></label>
+                  <input type="date" id="dob" class="form-input" autocomplete="bday">
+                  <span class="form-error hidden" id="dobErr">Please enter your date of birth</span>
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="phone">Phone Number <span class="required">*</span></label>
+                  <input type="tel" id="phone" class="form-input" placeholder="+1 (555) 000-0000" autocomplete="tel">
+                  <span class="form-error hidden" id="phoneErr">Please enter a valid phone number</span>
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label" for="email">Email Address <span class="required">*</span></label>
+                <input type="email" id="email" class="form-input" placeholder="jane.smith@email.com" autocomplete="email">
+                <span class="form-error hidden" id="emailErr">Please enter a valid email address</span>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">Patient Status</label>
+                <div class="type-toggle">
+                  <button type="button" class="type-toggle__btn is-active" id="toggleNew" onclick="setPatientType('new')">New Patient</button>
+                  <button type="button" class="type-toggle__btn" id="toggleExisting" onclick="setPatientType('existing')">Existing Patient</button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="step-card__footer">
+            <button class="btn btn--secondary" onclick="backToStep1()">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+              Back
+            </button>
+            <button class="btn btn--primary" onclick="goToStep3()">
+              Continue
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- ── Step 3: Request Details + AI ── -->
+        <div id="step3" class="step-card hidden">
+          <div class="step-card__header">
+            <div class="step-card__subtitle">Step 3 of 6</div>
+            <h2 class="step-card__title">Describe Your Request</h2>
+            <p class="step-card__desc">Describe what you need in your own words. Our system will understand and extract the details automatically.</p>
+          </div>
+          <div class="step-card__body">
+            <!-- Request type reminder -->
+            <div style="display:flex; align-items:center; gap:8px; margin-bottom:16px; padding:10px 14px; background:var(--color-neutral-50); border:1px solid var(--color-neutral-200); border-radius:var(--radius-md);">
+              <span style="font-size:1.1rem;" id="step3TypeIcon">📋</span>
+              <span style="font-size:0.85rem; font-weight:600; color:var(--color-neutral-700);" id="step3TypeLabel">New Patient Request</span>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="requestText">Tell us about your request <span class="required">*</span></label>
+              <textarea class="form-textarea" id="requestText" placeholder="Example: I am a new patient and would like to schedule an appointment. My doctor gave me a referral and I also have my insurance information ready..." rows="5"></textarea>
+              <span class="form-hint">The more detail you provide, the faster we can process your request.</span>
+              <span class="form-error hidden" id="requestTextErr">Please describe your request</span>
+            </div>
+
+            <!-- AI Processing (hidden until triggered) -->
+            <div id="aiProcessingBlock" class="hidden" style="margin-top:20px;">
+              <div class="ai-processing-stage">
+                <div class="ai-processing-stage__animation">
+                  <div class="ai-brain">⬡</div>
+                </div>
+                <div class="ai-processing-stage__status" id="aiStatusText">Understanding your request...</div>
+                <div class="ai-processing-stage__substatus" id="aiSubstatusText">Analyzing intent and extracting information</div>
+              </div>
+            </div>
+
+            <!-- AI Result (hidden until processing done) -->
+            <div id="aiResultBlock" class="ai-result" style="margin-top:4px;">
+              <div class="ai-result-box">
+                <div class="ai-result-box__label">
+                  <span>⬡</span> AI Analysis
+                </div>
+                <div style="margin-bottom:8px; font-size:0.78rem; color:var(--color-neutral-500); font-weight:500;">Intent detected</div>
+                <div class="ai-result-box__intent" id="aiDetectedIntent">New patient appointment request</div>
+
+                <div style="font-size:0.78rem; font-weight:600; color:var(--color-neutral-500); text-transform:uppercase; letter-spacing:0.07em; margin-bottom:10px;">Information identified</div>
+                <div class="ai-extracted-items" id="aiExtractedItems"></div>
+
+                <div id="aiConfidenceContainer" style="margin-top:8px;"></div>
+              </div>
+            </div>
+          </div>
+          <div class="step-card__footer">
+            <button class="btn btn--secondary" onclick="showStepCard(2)">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+              Back
+            </button>
+            <button class="btn btn--primary" id="step3AnalyzeBtn" onclick="analyzeRequest()">
+              Analyze My Request
+              <span>⬡</span>
+            </button>
+            <button class="btn btn--primary hidden" id="step3NextBtn" onclick="goToStep4()">
+              Continue
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- ── Step 4: Information Check ── -->
+        <div id="step4" class="step-card hidden">
+          <div class="step-card__header">
+            <div class="step-card__subtitle">Step 4 of 6</div>
+            <h2 class="step-card__title">Information Check</h2>
+            <p class="step-card__desc">Our system has reviewed what you provided. Here's what we have and what might be missing.</p>
+          </div>
+          <div class="step-card__body">
+
+            <div class="info-check-section">
+              <div class="info-check-section__title">Information received</div>
+              <div id="infoCheckReceived" class="check-list"></div>
+            </div>
+
+            <!-- Missing info alert -->
+            <div id="missingInfoSection" class="hidden">
+              <div class="info-check-section__title" style="color:var(--color-warning);">Attention needed</div>
+              <div id="missingAlerts"></div>
+            </div>
+
+          </div>
+          <div class="step-card__footer">
+            <button class="btn btn--secondary" onclick="showStepCard(3)">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+              Back
+            </button>
+            <button class="btn btn--secondary" onclick="goToStep5()">I'll provide this later</button>
+            <button class="btn btn--primary" onclick="goToStep5()" id="step4UploadBtn">Upload Documents</button>
+          </div>
+        </div>
+
+        <!-- ── Step 5: Document Upload ── -->
+        <div id="step5" class="step-card hidden">
+          <div class="step-card__header">
+            <div class="step-card__subtitle">Step 5 of 6</div>
+            <h2 class="step-card__title">Upload Documents</h2>
+            <p class="step-card__desc">Attach any relevant documents. You can always upload more later.</p>
+          </div>
+          <div class="step-card__body">
+
+            <!-- Document type selector -->
+            <div class="form-group" style="margin-bottom:20px;">
+              <label class="form-label">Document Type</label>
+              <select class="form-select" id="docTypeSelect">
+                <option value="Insurance Card">Insurance Card</option>
+                <option value="Referral">Referral Letter</option>
+                <option value="ID">Photo ID</option>
+                <option value="Medical Records">Medical Records</option>
+                <option value="Authorization">Authorization Form</option>
+                <option value="Other">Other Document</option>
+              </select>
+            </div>
+
+            <!-- Upload zone -->
+            <div class="upload-zone" id="uploadZone">
+              <input type="file" id="fileInput" multiple accept=".pdf,.jpg,.jpeg,.png" onchange="handleFileSelect(this.files)">
+              <div class="upload-zone__icon">📎</div>
+              <div class="upload-zone__text">Click to upload or drag and drop</div>
+              <div class="upload-zone__hint">PDF, JPG, PNG — up to 10 MB per file</div>
+            </div>
+
+            <!-- Uploaded files list -->
+            <div class="uploaded-files" id="uploadedFilesList"></div>
+
+            <!-- Doc check animation (after upload) -->
+            <div id="docCheckBlock" class="hidden" style="margin-top:16px;">
+              <div class="ai-thinking">
+                <div class="ai-thinking__dots">
+                  <div class="ai-thinking__dot"></div>
+                  <div class="ai-thinking__dot"></div>
+                  <div class="ai-thinking__dot"></div>
+                </div>
+                <span id="docCheckText">Checking your documents...</span>
+              </div>
+            </div>
+
+          </div>
+          <div class="step-card__footer">
+            <button class="btn btn--secondary" onclick="showStepCard(4)">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+              Back
+            </button>
+            <button class="btn btn--secondary" onclick="goToStep6()">Skip for now</button>
+            <button class="btn btn--primary" onclick="goToStep6()">
+              Continue
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- ── Step 6: Review ── -->
+        <div id="step6" class="step-card hidden">
+          <div class="step-card__header">
+            <div class="step-card__subtitle">Step 6 of 6</div>
+            <h2 class="step-card__title">Review Your Request</h2>
+            <p class="step-card__desc">Please check everything looks correct before submitting.</p>
+          </div>
+          <div class="step-card__body">
+
+            <!-- Status summary badge -->
+            <div id="reviewStatusBadge" style="margin-bottom:20px; padding:12px 16px; border-radius:var(--radius-md); border:1px solid var(--color-success-border); background:var(--color-success-bg); display:flex; align-items:center; gap:10px;">
+              <span style="font-size:1.2rem;">✓</span>
+              <div>
+                <div style="font-size:0.875rem; font-weight:700; color:var(--color-success);">Ready to submit</div>
+                <div style="font-size:0.8rem; color:var(--color-neutral-600);">Your request has been prepared and is ready for staff review.</div>
+              </div>
+            </div>
+
+            <div class="review-sections">
+              <!-- Request type -->
+              <div class="review-section">
+                <div class="review-section__header">
+                  <div class="review-section__title">Request</div>
+                  <button class="review-section__edit" onclick="backToStep1(); return false;">Edit</button>
+                </div>
+                <div class="review-section__body">
+                  <div class="review-field">
+                    <div class="review-field__label">Type</div>
+                    <div class="review-field__value" id="reviewRequestType">—</div>
+                  </div>
+                  <div class="review-field">
+                    <div class="review-field__label">Description</div>
+                    <div class="review-field__value" id="reviewRequestText" style="font-size:0.82rem; color:var(--color-neutral-600); line-height:1.6;">—</div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Personal info -->
+              <div class="review-section">
+                <div class="review-section__header">
+                  <div class="review-section__title">Personal Information</div>
+                  <button class="review-section__edit" onclick="showStepCard(2); return false;">Edit</button>
+                </div>
+                <div class="review-section__body">
+                  <div class="form-grid form-grid--2">
+                    <div class="review-field">
+                      <div class="review-field__label">Full Name</div>
+                      <div class="review-field__value" id="reviewName">—</div>
+                    </div>
+                    <div class="review-field">
+                      <div class="review-field__label">Date of Birth</div>
+                      <div class="review-field__value" id="reviewDob">—</div>
+                    </div>
+                    <div class="review-field">
+                      <div class="review-field__label">Phone</div>
+                      <div class="review-field__value" id="reviewPhone">—</div>
+                    </div>
+                    <div class="review-field">
+                      <div class="review-field__label">Email</div>
+                      <div class="review-field__value" id="reviewEmail">—</div>
+                    </div>
+                    <div class="review-field">
+                      <div class="review-field__label">Patient Status</div>
+                      <div class="review-field__value" id="reviewPatientStatus">—</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Documents -->
+              <div class="review-section">
+                <div class="review-section__header">
+                  <div class="review-section__title">Documents</div>
+                  <button class="review-section__edit" onclick="showStepCard(5); return false;">Edit</button>
+                </div>
+                <div class="review-section__body">
+                  <div id="reviewDocsList">
+                    <div style="font-size:0.82rem; color:var(--color-neutral-400);">No documents uploaded</div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- AI summary reminder -->
+              <div class="review-section" style="border-color:var(--color-primary-subtle); background:var(--color-primary-light);">
+                <div class="review-section__header" style="background:transparent; border-color:var(--color-primary-subtle);">
+                  <div class="review-section__title" style="color:var(--color-primary);">⬡ AI Summary</div>
+                </div>
+                <div class="review-section__body">
+                  <div style="font-size:0.82rem; color:var(--color-neutral-600); line-height:1.6;" id="reviewAiSummary">AI analysis will be included with your submission.</div>
+                  <div id="reviewConfidenceBar" style="margin-top:12px;"></div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+          <div class="step-card__footer">
+            <button class="btn btn--secondary" onclick="showStepCard(5)">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+              Back
+            </button>
+            <button class="btn btn--primary btn--lg" onclick="submitCase()">
+              Submit Request
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- ── Step 7: Submitted ── -->
+        <div id="step7" class="step-card hidden">
+          <div class="submission-hero">
+            <div class="submission-hero__check">✓</div>
+            <h2>Your request has been submitted!</h2>
+            <p>AI has prepared your request for the staff team. A staff member will review it shortly.</p>
+          </div>
+          <div style="padding:0 28px 28px;">
+            <div class="case-id-box">
+              <div>
+                <div class="case-id-box__label">Case ID</div>
+                <div class="case-id-box__id" id="submittedCaseId">REQ-XXXXX</div>
+              </div>
+              <button onclick="copyCaseId()" style="background:rgba(255,255,255,0.1); color:rgba(255,255,255,0.7); padding:6px 12px; border-radius:6px; font-size:0.78rem; font-weight:500; border:1px solid rgba(255,255,255,0.2);" id="copyBtn">Copy ID</button>
+            </div>
+
+            <div style="background:var(--color-neutral-50); border:1px solid var(--color-neutral-200); border-radius:var(--radius-md); padding:16px; margin-bottom:20px;">
+              <div style="font-size:0.78rem; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:var(--color-neutral-400); margin-bottom:4px;">Current Status</div>
+              <div style="font-size:0.95rem; font-weight:700; color:var(--color-neutral-800);">Ready for Staff Review</div>
+              <div style="font-size:0.8rem; color:var(--color-neutral-500); margin-top:4px;">AI has prepared your case and it is now in the staff review queue.</div>
+            </div>
+
+            <!-- Submission timeline -->
+            <div style="margin-bottom:24px;">
+              <div style="font-size:0.78rem; font-weight:700; text-transform:uppercase; letter-spacing:0.07em; color:var(--color-neutral-500); margin-bottom:14px;">What happens next</div>
+              <div class="timeline" id="submissionTimeline">
+                <div class="timeline-item timeline-item--completed">
+                  <div class="timeline-item__line"></div>
+                  <div class="timeline-item__dot">✓</div>
+                  <div class="timeline-item__content">
+                    <div class="timeline-item__label">Request received</div>
+                    <div class="timeline-item__time">Just now</div>
+                  </div>
+                </div>
+                <div class="timeline-item timeline-item--completed">
+                  <div class="timeline-item__line"></div>
+                  <div class="timeline-item__dot">✓</div>
+                  <div class="timeline-item__content">
+                    <div class="timeline-item__label">Information collected & verified</div>
+                    <div class="timeline-item__time">Just now</div>
+                  </div>
+                </div>
+                <div class="timeline-item timeline-item--completed">
+                  <div class="timeline-item__line"></div>
+                  <div class="timeline-item__dot">✓</div>
+                  <div class="timeline-item__content">
+                    <div class="timeline-item__label">AI case preparation complete</div>
+                    <div class="timeline-item__time">Just now</div>
+                  </div>
+                </div>
+                <div class="timeline-item timeline-item--active">
+                  <div class="timeline-item__line"></div>
+                  <div class="timeline-item__dot">●</div>
+                  <div class="timeline-item__content">
+                    <div class="timeline-item__label">Staff review</div>
+                    <div class="timeline-item__time">In progress</div>
+                  </div>
+                </div>
+                <div class="timeline-item timeline-item--pending">
+                  <div class="timeline-item__dot"></div>
+                  <div class="timeline-item__content">
+                    <div class="timeline-item__label">Next step</div>
+                    <div class="timeline-item__time">Pending</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div style="padding:16px; background:var(--color-primary-light); border:1px solid var(--color-primary-subtle); border-radius:var(--radius-md); margin-bottom:24px; font-size:0.85rem; color:var(--color-neutral-700); line-height:1.6;">
+              <strong style="color:var(--color-primary);">⬡ AI + Human Collaboration:</strong> Our AI has automatically prepared your request for the team. A staff member will review the case and take the next appropriate action. You remain in control — we'll never make a clinical or scheduling decision without a human review.
+            </div>
+
+            <div style="display:flex; gap:10px; flex-wrap:wrap;">
+              <button class="btn btn--primary" onclick="showView('viewCaseStatus'); updateCaseStatusView()">
+                View Case Status
+              </button>
+              <button class="btn btn--secondary" onclick="startNewRequest()">
+                Submit Another Request
+              </button>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /stepsWrapper -->
+    </div><!-- /viewRequest -->
+
+    <!-- ═══════════════════════════════════════════════════════════════════════
+         VIEW: Case Status
+    ════════════════════════════════════════════════════════════════════════════ -->
+    <div id="viewCaseStatus" class="patient-view">
+      <div style="margin-bottom:24px;">
+        <h2 style="margin-bottom:6px;">My Cases</h2>
+        <p style="color:var(--color-neutral-500); font-size:0.9rem;">Track the status of your submitted requests.</p>
+      </div>
+
+      <div id="patientCasesList"></div>
+
+      <div id="noCasesMsg" class="hidden" style="text-align:center; padding:48px 24px; background:#fff; border:1px solid var(--color-neutral-200); border-radius:var(--radius-lg);">
+        <div style="font-size:2.5rem; margin-bottom:16px;">📋</div>
+        <h3 style="margin-bottom:8px;">No cases yet</h3>
+        <p style="color:var(--color-neutral-500); margin-bottom:20px;">Submit a request and it will appear here.</p>
+        <button class="btn btn--primary" onclick="showView('viewRequest')">Submit a Request</button>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════
+         VIEW: Single Case Detail (patient-facing)
+    ════════════════════════════════════════════════════════════════════════════ -->
+    <div id="viewPatientCaseDetail" class="patient-view">
+      <div style="margin-bottom:20px;">
+        <button class="btn btn--secondary btn--sm" onclick="showView('viewCaseStatus')">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+          Back to My Cases
+        </button>
+      </div>
+      <div id="patientCaseDetailContent"></div>
+    </div>
+
+  </main>
+
+  <!-- Toast Container -->
+  <div id="toast-container"></div>
+
+  <script src="js/mock-data.js"></script>
+  <script src="js/app.js"></script>
+  <script src="js/patient.js"></script>
+</body>
+</html>

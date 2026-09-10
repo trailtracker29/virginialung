@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FlowDesk — AI Workflow Engine</title>
+  <meta name="description" content="A reusable core AI workflow engine for handling large volumes of human requests. AI understands, extracts, validates and prepares — humans stay in control.">
+  <link rel="stylesheet" href="css/global.css">
+  <style>
+    body {
+      background: var(--color-neutral-900);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+
+    .landing {
+      max-width: 640px;
+      width: 100%;
+      text-align: center;
+    }
+
+    .landing__logo {
+      width: 80px;
+      height: 80px;
+      background: linear-gradient(135deg, #2563EB, #7C3AED);
+      border-radius: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2.2rem;
+      margin: 0 auto 28px;
+      box-shadow: 0 16px 48px rgba(37,99,235,0.4);
+    }
+
+    .landing__eyebrow {
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--color-primary);
+      margin-bottom: 12px;
+    }
+
+    .landing h1 {
+      color: #fff;
+      font-size: 2.8rem;
+      letter-spacing: -0.03em;
+      margin-bottom: 16px;
+    }
+
+    .landing__desc {
+      color: rgba(255,255,255,0.55);
+      font-size: 1rem;
+      line-height: 1.7;
+      margin-bottom: 48px;
+    }
+
+    .landing__portals {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 40px;
+    }
+
+    .portal-card {
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 18px;
+      padding: 28px 24px;
+      text-align: left;
+      cursor: pointer;
+      transition: all 0.22s ease;
+      text-decoration: none;
+      display: block;
+    }
+
+    .portal-card:hover {
+      background: rgba(255,255,255,0.1);
+      border-color: rgba(255,255,255,0.2);
+      transform: translateY(-3px);
+      box-shadow: 0 12px 40px rgba(0,0,0,0.3);
+    }
+
+    .portal-card__icon {
+      width: 52px;
+      height: 52px;
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+      margin-bottom: 16px;
+    }
+
+    .portal-card--patient .portal-card__icon { background: rgba(37,99,235,0.25); }
+    .portal-card--staff   .portal-card__icon { background: rgba(124,58,237,0.25); }
+
+    .portal-card__label {
+      font-size: 0.68rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: rgba(255,255,255,0.35);
+      margin-bottom: 4px;
+    }
+
+    .portal-card__title {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 8px;
+    }
+
+    .portal-card__desc {
+      font-size: 0.82rem;
+      color: rgba(255,255,255,0.45);
+      line-height: 1.5;
+    }
+
+    .portal-card__cta {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 16px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: rgba(255,255,255,0.6);
+      transition: color 0.15s ease;
+    }
+
+    .portal-card:hover .portal-card__cta { color: #fff; }
+
+    .landing__principles {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      justify-content: center;
+      margin-bottom: 32px;
+    }
+
+    .principle-tag {
+      background: rgba(255,255,255,0.07);
+      border: 1px solid rgba(255,255,255,0.1);
+      color: rgba(255,255,255,0.5);
+      font-size: 0.75rem;
+      font-weight: 500;
+      padding: 5px 12px;
+      border-radius: 9999px;
+    }
+
+    .landing__footer {
+      font-size: 0.75rem;
+      color: rgba(255,255,255,0.2);
+    }
+
+    @media (max-width: 500px) {
+      .landing__portals { grid-template-columns: 1fr; }
+      .landing h1 { font-size: 2rem; }
+    }
+  </style>
+</head>
+<body>
+  <div class="landing">
+    <div class="landing__logo">⬡</div>
+    <div class="landing__eyebrow">Demo Prototype</div>
+    <h1>FlowDesk</h1>
+    <p class="landing__desc">
+      A reusable core AI workflow engine. AI understands requests, extracts information,
+      detects gaps, and prepares the next action — while humans remain in full control.
+    </p>
+
+    <div class="landing__portals">
+      <a href="patient.html" class="portal-card portal-card--patient">
+        <div class="portal-card__icon">👤</div>
+        <div class="portal-card__label">Experience 1</div>
+        <div class="portal-card__title">Patient Portal</div>
+        <div class="portal-card__desc">Submit a request, see AI understand your intent, track your case status.</div>
+        <div class="portal-card__cta">
+          Enter portal
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
+      </a>
+
+      <a href="staff.html" class="portal-card portal-card--staff">
+        <div class="portal-card__icon">🖥</div>
+        <div class="portal-card__label">Experience 2</div>
+        <div class="portal-card__title">Staff Portal</div>
+        <div class="portal-card__desc">Review AI-prepared cases, see recommendations, approve decisions, manage the queue.</div>
+        <div class="portal-card__cta">
+          Enter portal
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
+      </a>
+    </div>
+
+    <div class="landing__principles">
+      <span class="principle-tag">AI understands intent</span>
+      <span class="principle-tag">Information extraction</span>
+      <span class="principle-tag">Missing info detection</span>
+      <span class="principle-tag">Workflow state tracking</span>
+      <span class="principle-tag">Human-in-the-loop</span>
+      <span class="principle-tag">AI recommends, humans decide</span>
+      <span class="principle-tag">Reusable across verticals</span>
+    </div>
+
+    <div class="landing__footer">
+      UI/UX Prototype — No backend · No real AI · No patient data
+    </div>
+  </div>
+</body>
+</html>

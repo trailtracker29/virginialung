@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Staff Portal — AI Workflow Engine</title>
+  <meta name="description" content="Operations staff portal for the AI Workflow Engine. Review AI-prepared cases, take action, and manage the case queue.">
+  <link rel="stylesheet" href="css/global.css">
+  <link rel="stylesheet" href="css/staff.css">
+</head>
+<body class="staff-body">
+
+  <!-- Role Switcher -->
+  <div class="role-switcher" id="roleSwitcher">
+    <span class="role-switcher__label">Demo Mode</span>
+    <button class="role-btn" onclick="window.location.href='patient.html'" id="rolePatient">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+      Patient
+    </button>
+    <button class="role-btn active" onclick="window.location.href='staff.html'" id="roleStaff">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 9h6M9 12h6M9 15h4"/></svg>
+      Staff
+    </button>
+  </div>
+
+  <div class="staff-layout">
+
+    <!-- ── Sidebar ── -->
+    <aside class="staff-sidebar" id="staffSidebar">
+      <div class="staff-sidebar__brand">
+        <div class="sidebar-brand-mark">⬡</div>
+        <div class="sidebar-brand-name">FlowDesk</div>
+        <div class="sidebar-brand-role">Staff Operations</div>
+      </div>
+
+      <nav class="staff-sidebar__nav">
+        <div class="sidebar-nav-section">
+          <div class="sidebar-nav-section__label">Overview</div>
+          <div class="sidebar-nav-item is-active" id="navDashboard" onclick="switchStaffView('viewDashboard', this)">
+            <svg class="sidebar-nav-item__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+            Dashboard
+          </div>
+        </div>
+
+        <div class="sidebar-nav-section">
+          <div class="sidebar-nav-section__label">Case Queue</div>
+          <div class="sidebar-nav-item" id="navAllCases" onclick="switchStaffView('viewCaseQueue', this); filterCases('all')">
+            <svg class="sidebar-nav-item__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+            All Cases
+            <span class="sidebar-nav-item__badge sidebar-nav-item__badge--blue" id="sidebarTotalBadge">0</span>
+          </div>
+          <div class="sidebar-nav-item" id="navNeedsReview" onclick="switchStaffView('viewCaseQueue', this); filterCases('needs_review')">
+            <svg class="sidebar-nav-item__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            Needs Review
+            <span class="sidebar-nav-item__badge" id="sidebarReviewBadge">0</span>
+          </div>
+          <div class="sidebar-nav-item" id="navNeedsInfo" onclick="switchStaffView('viewCaseQueue', this); filterCases('needs_info')">
+            <svg class="sidebar-nav-item__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+            Needs Info
+            <span class="sidebar-nav-item__badge" id="sidebarInfoBadge">0</span>
+          </div>
+          <div class="sidebar-nav-item" id="navReadyAction" onclick="switchStaffView('viewCaseQueue', this); filterCases('ready_action')">
+            <svg class="sidebar-nav-item__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+            Ready for Action
+            <span class="sidebar-nav-item__badge sidebar-nav-item__badge--green" id="sidebarReadyBadge">0</span>
+          </div>
+          <div class="sidebar-nav-item" id="navCompleted" onclick="switchStaffView('viewCaseQueue', this); filterCases('completed')">
+            <svg class="sidebar-nav-item__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+            Completed
+            <span class="sidebar-nav-item__badge sidebar-nav-item__badge--green" id="sidebarCompletedBadge">0</span>
+          </div>
+        </div>
+
+        <div class="sidebar-nav-section">
+          <div class="sidebar-nav-section__label">Tools</div>
+          <div class="sidebar-nav-item" onclick="showToast('Reporting coming soon', 'info')">
+            <svg class="sidebar-nav-item__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+            Analytics
+          </div>
+          <div class="sidebar-nav-item" onclick="showToast('Settings panel coming soon', 'info')">
+            <svg class="sidebar-nav-item__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+            Settings
+          </div>
+        </div>
+      </nav>
+
+      <div class="staff-sidebar__footer">
+        <div class="staff-user">
+          <div class="staff-user__avatar">SA</div>
+          <div>
+            <div class="staff-user__name">Sarah Adams</div>
+            <div class="staff-user__role">Care Coordinator</div>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- ── Main ── -->
+    <main class="staff-main">
+
+      <!-- Topbar -->
+      <div class="staff-topbar">
+        <div class="staff-topbar__left">
+          <button class="sidebar-toggle" id="sidebarToggle" onclick="toggleSidebar()" aria-label="Toggle sidebar">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+          </button>
+          <div>
+            <div class="staff-topbar__title" id="topbarTitle">Dashboard</div>
+            <div class="staff-topbar__breadcrumb" id="topbarBreadcrumb">AI Workflow Engine · Operations</div>
+          </div>
+        </div>
+        <div class="staff-topbar__right">
+          <div class="topbar-search">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input type="text" placeholder="Search cases..." id="caseSearchInput" oninput="searchCases(this.value)">
+          </div>
+          <button class="topbar-btn" onclick="refreshDashboard()" title="Refresh">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
+          </button>
+          <button class="topbar-btn" onclick="showToast('2 new notifications', 'info')" title="Notifications">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
+            <div class="topbar-btn__badge"></div>
+          </button>
+        </div>
+      </div>
+
+      <!-- Content area -->
+      <div class="staff-content">
+
+        <!-- ═══════════════════════════════════════════════════════════════════
+             VIEW: Dashboard
+        ════════════════════════════════════════════════════════════════════════ -->
+        <div id="viewDashboard" class="staff-view is-active">
+
+          <div style="margin-bottom:24px;">
+            <h2>Good morning, Sarah 👋</h2>
+            <p style="color:var(--color-neutral-500); font-size:0.9rem; margin-top:4px;">Here's your operations overview for today.</p>
+          </div>
+
+          <!-- Metrics -->
+          <div class="metrics-grid" id="metricsGrid">
+            <!-- Populated by JS -->
+          </div>
+
+          <!-- AI System Status -->
+          <div style="background:linear-gradient(135deg,#EFF6FF,#F5F3FF); border:1px solid var(--color-primary-subtle); border-radius:var(--radius-lg); padding:20px 24px; margin-bottom:24px; display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap;">
+            <div style="display:flex; align-items:center; gap:14px;">
+              <div style="width:44px; height:44px; background:linear-gradient(135deg,#2563EB,#7C3AED); border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:1.2rem; color:#fff;">⬡</div>
+              <div>
+                <div style="font-weight:700; color:var(--color-neutral-900); margin-bottom:2px;">AI Engine Active</div>
+                <div style="font-size:0.82rem; color:var(--color-neutral-500);">Processing and preparing cases automatically. All decisions require human approval.</div>
+              </div>
+            </div>
+            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+              <span class="badge badge--success">● System online</span>
+              <span class="badge badge--primary">⬡ AI processing</span>
+            </div>
+          </div>
+
+          <!-- Recent Cases Preview -->
+          <div class="section-title-bar">
+            <div class="section-title">Recent Cases</div>
+            <div class="section-actions">
+              <button class="btn btn--secondary btn--sm" onclick="switchStaffView('viewCaseQueue', document.getElementById('navAllCases')); filterCases('all')">View all cases</button>
+            </div>
+          </div>
+
+          <div class="table-wrapper">
+            <table class="cases-table" id="dashboardCasesTable">
+              <thead>
+                <tr>
+                  <th>Case ID</th>
+                  <th>Patient</th>
+                  <th>Request</th>
+                  <th>Status</th>
+                  <th>AI Confidence</th>
+                  <th>Priority</th>
+                  <th>Updated</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="dashboardCasesTbody">
+                <!-- Populated by JS -->
+              </tbody>
+            </table>
+          </div>
+
+        </div>
+
+        <!-- ═══════════════════════════════════════════════════════════════════
+             VIEW: Case Queue
+        ════════════════════════════════════════════════════════════════════════ -->
+        <div id="viewCaseQueue" class="staff-view">
+
+          <div class="section-title-bar">
+            <div class="section-title" id="queueTitle">All Cases</div>
+            <div class="section-actions">
+              <!-- Filter pills -->
+              <button class="filter-btn is-active" data-filter="all" onclick="filterCases('all', this)">All</button>
+              <button class="filter-btn" data-filter="needs_review" onclick="filterCases('needs_review', this)">Needs Review</button>
+              <button class="filter-btn" data-filter="needs_info" onclick="filterCases('needs_info', this)">Needs Info</button>
+              <button class="filter-btn" data-filter="ready_action" onclick="filterCases('ready_action', this)">Ready</button>
+              <button class="filter-btn" data-filter="completed" onclick="filterCases('completed', this)">Completed</button>
+            </div>
+          </div>
+
+          <div class="table-wrapper">
+            <table class="cases-table">
+              <thead>
+                <tr>
+                  <th>Case ID</th>
+                  <th>Patient</th>
+                  <th>Request Type</th>
+                  <th>Status</th>
+                  <th>AI Confidence</th>
+                  <th>Missing Info</th>
+                  <th>Priority</th>
+                  <th>Updated</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody id="queueCasesTbody">
+                <!-- Populated by JS -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- ═══════════════════════════════════════════════════════════════════
+             VIEW: Case Detail
+        ════════════════════════════════════════════════════════════════════════ -->
+        <div id="viewCaseDetail" class="staff-view">
+          <div id="caseDetailContent">
+            <!-- Populated by JS -->
+          </div>
+        </div>
+
+      </div><!-- /staff-content -->
+    </main>
+  </div>
+
+  <!-- Toast Container -->
+  <div id="toast-container"></div>
+
+  <!-- Confirm Action Modal -->
+  <div class="modal-overlay" id="confirmModal">
+    <div class="modal">
+      <div class="modal__header">
+        <div class="modal__title" id="confirmModalTitle">Confirm Action</div>
+        <button class="modal__close" onclick="closeModal('confirmModal')">✕</button>
+      </div>
+      <div class="modal__body" id="confirmModalBody">
+        Are you sure?
+      </div>
+      <div class="modal__footer">
+        <button class="btn btn--secondary" onclick="closeModal('confirmModal')">Cancel</button>
+        <button class="btn btn--primary" id="confirmModalBtn" onclick="">Confirm</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Request Info Modal -->
+  <div class="modal-overlay" id="requestInfoModal">
+    <div class="modal">
+      <div class="modal__header">
+        <div class="modal__title">Request Information from Patient</div>
+        <button class="modal__close" onclick="closeModal('requestInfoModal')">✕</button>
+      </div>
+      <div class="modal__body">
+        <div class="form-group" style="margin-bottom:16px;">
+          <label class="form-label">What do you need from the patient?</label>
+          <textarea class="form-textarea" id="requestInfoText" rows="4" placeholder="Please provide your insurance card and referral letter so we can process your appointment request..."></textarea>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Deadline</label>
+          <select class="form-select" id="requestInfoDeadline">
+            <option>3 business days</option>
+            <option>5 business days</option>
+            <option>7 business days</option>
+            <option>No deadline</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal__footer">
+        <button class="btn btn--secondary" onclick="closeModal('requestInfoModal')">Cancel</button>
+        <button class="btn btn--primary" id="sendInfoRequestBtn">Send Request</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Edit Recommendation Modal -->
+  <div class="modal-overlay" id="editRecModal">
+    <div class="modal">
+      <div class="modal__header">
+        <div class="modal__title">Edit AI Recommendation</div>
+        <button class="modal__close" onclick="closeModal('editRecModal')">✕</button>
+      </div>
+      <div class="modal__body">
+        <div class="form-group" style="margin-bottom:16px;">
+          <label class="form-label">Recommended Action</label>
+          <input type="text" class="form-input" id="editRecAction" placeholder="What should happen next?">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Reason</label>
+          <textarea class="form-textarea" id="editRecReason" rows="3"></textarea>
+        </div>
+      </div>
+      <div class="modal__footer">
+        <button class="btn btn--secondary" onclick="closeModal('editRecModal')">Cancel</button>
+        <button class="btn btn--primary" id="saveEditRecBtn">Save & Apply</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/mock-data.js"></script>
+  <script src="js/app.js"></script>
+  <script src="js/staff.js"></script>
+</body>
+</html>
