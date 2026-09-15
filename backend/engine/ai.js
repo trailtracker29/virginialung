@@ -13,14 +13,14 @@ class AIEngine {
     }
   }
 
-  async extractIntent(text, rules) {
+  async extractIntent(text, rules, structuredData = {}) {
     if (!this.ai) {
       // Mock logic for local testing without key
       return {
-        intent: 'General Request',
+        intent: 'schedule',
         confidence: 85,
         extracted: [],
-        missing: [],
+        missing: ['DOB'], // mock simulating missing DOB
         raw_text: text
       };
     }
@@ -31,6 +31,7 @@ Analyze the following patient request.
 Rules: ${JSON.stringify(rules.extractionRules)}
 
 Extract the intent, confidence (0-100), structured information found, and missing required information based on the rules.
+When determining what information is missing, you MUST consider BOTH the unstructured Patient Request AND the Structured Data Already Provided. If a required field is present in the Structured Data Already Provided, it is NOT missing.
 Respond ONLY with a valid JSON object matching this schema:
 {
   "intent": "string",
@@ -38,6 +39,9 @@ Respond ONLY with a valid JSON object matching this schema:
   "extracted": [{"label": "string", "found": boolean, "value": "string"}],
   "missing": ["string"]
 }
+
+Structured Data Already Provided:
+${JSON.stringify(structuredData, null, 2)}
 
 Patient Request:
 "${text}"

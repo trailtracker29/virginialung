@@ -19,7 +19,8 @@ class WorkflowEngine {
     }
 
     // 1. AI Understanding
-    const aiResult = await this.ai.extractIntent(requestText, this.config);
+    const structuredData = { firstName, lastName, email, phone, dob, patientType, requestTypeLabel };
+    const aiResult = await this.ai.extractIntent(requestText, this.config, structuredData);
     
     // 2. State transition based on config rules & AI
     const missing = aiResult.missing || [];
