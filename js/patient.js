@@ -459,73 +459,50 @@ function buildReview() {
 // ── Step 7: Submit ────────────────────────────────────────────────────────────
 
 async function submitCase() {
-  // Build the case object
   const firstName = document.getElementById('firstName').value.trim();
   const lastName  = document.getElementById('lastName').value.trim();
   const dob       = document.getElementById('dob').value;
   const phone     = document.getElementById('phone').value.trim();
   const email     = document.getElementById('email').value.trim();
   const text      = document.getElementById('requestText').value.trim();
-  const conf      = PatientState.aiResult?.confidence || 85;
 
-  const missing = PatientState.aiResult?.missing || [];
-
-  const newCase = {
-    id: generateId(),
-    patientName: firstName + ' ' + lastName,
-    email,
-    phone,
+  const payload = {
+    firstName,
+    lastName,
     dob,
-    patientStatus: PatientState.patientType,
+    phone,
+    email,
+    requestText: text,
     requestType: PatientState.requestType,
     requestTypeLabel: PatientState.requestTypeLabel,
-    requestText: text,
-    status: missing.length > 0 ? CaseStatus.NEEDS_INFO : CaseStatus.READY_ACTION,
-    workflowState: missing.length > 0 ? WorkflowStates.MISSING_INFO : WorkflowStates.READY_REVIEW,
-    priority: conf >= 85 ? Priority.HIGH : conf >= 65 ? Priority.MEDIUM : Priority.LOW,
-    aiConfidence: conf,
-    aiSummary: `${PatientState.aiResult?.intent || 'Administrative request'} submitted by ${firstName} ${lastName}. AI has extracted contact information and prepared the case for staff review.`,
-    detectedIntent: PatientState.aiResult?.intent || 'Administrative request',
-    extractedInfo: {
-      name:          { value: firstName + ' ' + lastName, status: 'confirmed' },
-      contact:       { value: `${email} / ${phone}`, status: 'confirmed' },
-      dob:           { value: dob ? new Date(dob + 'T00:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : '—', status: 'confirmed' },
-      patientStatus: { value: PatientState.patientType === 'new' ? 'New patient' : 'Existing patient', status: 'confirmed' },
-      insurance:     { value: missing.includes('Insurance information') ? 'Not provided' : 'Provided', status: missing.includes('Insurance information') ? 'missing' : 'confirmed' },
-      referral:      { value: missing.includes('Referral document') ? 'Mentioned, not uploaded' : (PatientState.aiResult?.extracted.find(e => e.label === 'Referral mentioned')?.found ? 'Provided' : 'N/A'), status: missing.includes('Referral document') ? 'missing' : 'confirmed' },
-    },
-    missingInfo: missing,
-    recommendedAction: missing.length > 0 ? 'Request missing information from patient.' : 'Review request and approve.',
-    actionReason: missing.length > 0 ? `Patient has not provided: ${missing.join(', ')}.` : 'All required information appears complete.',
-    documents: PatientState.uploadedFiles.map(f => ({
-      name: f.name, type: f.type, status: 'verified', size: f.size, uploadedAt: new Date().toISOString(),
-    })),
-    timeline: [
-      { state: 'incoming',    label: 'Request received',           timestamp: new Date().toISOString(), completed: true },
-      { state: 'extracted',   label: 'Information extracted by AI', timestamp: new Date().toISOString(), completed: true },
-      { state: missing.length > 0 ? 'missing_info' : 'ready_review',
-        label: missing.length > 0 ? 'Missing information detected' : 'Ready for staff review',
-        timestamp: new Date().toISOString(), completed: true, active: true },
-    ],
-    activity: [
-      { type: 'system', text: 'Case created from patient portal submission', timestamp: new Date().toISOString() },
-      { type: 'ai',     text: `AI processed request with ${conf}% confidence`, timestamp: new Date().toISOString() },
-      ...(missing.length > 0 ? [{ type: 'ai', text: `Missing information detected: ${missing.join(', ')}`, timestamp: new Date().toISOString() }] : []),
-    ],
-    updatedAt: new Date().toISOString(),
-    createdAt: new Date().toISOString(),
-    humanReviewRequired: conf < 65,
+    patientType: PatientState.patientType,
+    documents: PatientState.uploadedFiles
   };
 
-  AppState.addCase(newCase);
-  PatientState.submittedCaseId = newCase.id;
-  PatientState.patientCaseId   = newCase.id;
+  try {
+    const response = await fetch(`${window.AppConfig.API_BASE_URL}/api/intake`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    
+    const result = await response.json();
+    if (!result.success) throw new Error(result.error);
+    
+    const newCase = result.caseData;
+    
+    PatientState.submittedCaseId = newCase.id;
+    PatientState.patientCaseId   = newCase.id;
 
-  // Show step 7
-  showStepCard(7);
-  document.getElementById('submittedCaseId').textContent = newCase.id;
-  setProgress(7);
-  showToast('Request submitted successfully!', 'success');
+    // Show step 7
+    showStepCard(7);
+    document.getElementById('submittedCaseId').textContent = newCase.id;
+    setProgress(7);
+    showToast('Request submitted successfully!', 'success');
+  } catch (error) {
+    console.error('Submission failed:', error);
+    showToast('Submission failed. Please try again later.', 'danger');
+  }
 }
 
 function copyCaseId() {
@@ -570,25 +547,28 @@ function startNewRequest() {
 
 // ── Case Status View ──────────────────────────────────────────────────────────
 
-function updateCaseStatusView() {
-  // Show only cases from this patient session (all for demo purposes but put newest submitted first)
-  const allCases = AppState.getCases();
+async function updateCaseStatusView() {
   const list = document.getElementById('patientCasesList');
   const noMsg = document.getElementById('noCasesMsg');
 
   if (!list) return;
 
-  // For demo: show the newly submitted case + 2 seed cases to make it feel real
-  const displayCases = allCases.slice(0, 5);
+  try {
+    const response = await fetch(`${window.AppConfig.API_BASE_URL}/api/cases`);
+    const allCases = await response.json();
+    const displayCases = allCases.slice(0, 5);
 
-  if (displayCases.length === 0) {
-    noMsg.classList.remove('hidden');
-    list.innerHTML = '';
-    return;
+    if (displayCases.length === 0) {
+      noMsg.classList.remove('hidden');
+      list.innerHTML = '';
+      return;
+    }
+
+    noMsg.classList.add('hidden');
+    list.innerHTML = displayCases.map(c => renderPatientCaseCard(c)).join('');
+  } catch (error) {
+    console.error('Error fetching cases:', error);
   }
-
-  noMsg.classList.add('hidden');
-  list.innerHTML = displayCases.map(c => renderPatientCaseCard(c)).join('');
 }
 
 function renderPatientCaseCard(c) {
@@ -658,14 +638,16 @@ function renderPatientCaseCard(c) {
   `;
 }
 
-function openPatientCaseDetail(caseId) {
-  const c = AppState.getCaseById(caseId);
-  if (!c) return;
+async function openPatientCaseDetail(caseId) {
+  try {
+    const response = await fetch(`${window.AppConfig.API_BASE_URL}/api/cases/${caseId}`);
+    const c = await response.json();
+    if (!c) return;
 
-  const content = document.getElementById('patientCaseDetailContent');
-  if (!content) return;
+    const content = document.getElementById('patientCaseDetailContent');
+    if (!content) return;
 
-  const hasAction = c.status === 'needs_info' || c.status === 'waiting_user';
+    const hasAction = c.status === 'needs_info' || c.status === 'waiting_user';
 
   content.innerHTML = `
     <div class="step-card" style="margin-bottom:20px;">
@@ -745,8 +727,11 @@ function openPatientCaseDetail(caseId) {
     </div>
   `;
 
-  renderTimeline(c.timeline, document.getElementById('patientTimeline'));
+  renderTimeline(c.timeline || c.activities, document.getElementById('patientTimeline'));
   showView('viewPatientCaseDetail');
+  } catch (error) {
+    console.error('Failed to load case detail', error);
+  }
 }
 
 // ── Init ──────────────────────────────────────────────────────────────────────

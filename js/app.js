@@ -3,6 +3,14 @@
  * Shared functions used by both portals
  */
 
+// ── Configuration ──────────────────────────────────────────────────────────────
+window.AppConfig = {
+  // Default to local backend.
+  // To test via n8n, change API_BASE_URL to your n8n webhook URL (e.g. 'https://your-n8n.com/webhook/intake').
+  // For production, set to Render backend URL.
+  API_BASE_URL: 'http://localhost:3000'
+};
+
 // ── Toast Notifications ───────────────────────────────────────────────────────
 
 function showToast(message, type = 'info', duration = 3500) {

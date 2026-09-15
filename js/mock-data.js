@@ -12,7 +12,7 @@ const WorkflowStates = {
   MISSING_INFO: 'missing_info',
   WAITING_USER: 'waiting_user',
   REVALIDATION: 'revalidation',
-  READY_REVIEW: 'ready_review',
+  ready_for_review: 'ready_for_review',
   APPROVED: 'approved',
   COMPLETED: 'completed',
   ESCALATED: 'escalated',
@@ -26,7 +26,7 @@ const WorkflowStateLabels = {
   missing_info: 'Missing Information',
   waiting_user: 'Waiting for User',
   revalidation: 'Re-validation',
-  ready_review: 'Ready for Review',
+  ready_for_review: 'Ready for Review',
   approved: 'Approved',
   completed: 'Completed',
   escalated: 'Escalated',
@@ -88,7 +88,7 @@ const seedCases = [
     requestTypeLabel: 'New Patient Appointment',
     requestText: 'I am a new patient and would like to schedule an appointment. My doctor gave me a referral and I also have my insurance information ready.',
     status: CaseStatus.READY_ACTION,
-    workflowState: WorkflowStates.READY_REVIEW,
+    workflowState: WorkflowStates.ready_for_review,
     priority: Priority.HIGH,
     aiConfidence: 94,
     aiSummary: 'This appears to be a new patient appointment request. The user has provided contact information, insurance information, and stated that they have a referral. All required administrative information appears complete.',
@@ -113,7 +113,7 @@ const seedCases = [
       { state: 'understanding', label: 'AI processing request', timestamp: daysAgo(2), completed: true },
       { state: 'extracted', label: 'Information extracted', timestamp: daysAgo(2), completed: true },
       { state: 'validation', label: 'Validation complete', timestamp: daysAgo(1), completed: true },
-      { state: 'ready_review', label: 'Ready for staff review', timestamp: daysAgo(1), completed: true, active: true },
+      { state: 'ready_for_review', label: 'Ready for staff review', timestamp: daysAgo(1), completed: true, active: true },
     ],
     activity: [
       { type: 'system', text: 'Case created from patient submission', timestamp: daysAgo(2) },
@@ -242,7 +242,7 @@ const seedCases = [
       { state: 'understanding', label: 'AI processing request', timestamp: daysAgo(5), completed: true },
       { state: 'extracted', label: 'Information extracted', timestamp: daysAgo(5), completed: true },
       { state: 'validation', label: 'Validation complete', timestamp: daysAgo(5), completed: true },
-      { state: 'ready_review', label: 'Ready for staff review', timestamp: daysAgo(4), completed: true },
+      { state: 'ready_for_review', label: 'Ready for staff review', timestamp: daysAgo(4), completed: true },
       { state: 'approved', label: 'Approved by staff', timestamp: daysAgo(4), completed: true },
       { state: 'completed', label: 'Completed', timestamp: daysAgo(3), completed: true, active: true },
     ],
@@ -356,7 +356,7 @@ const seedCases = [
     requestTypeLabel: 'Upload Documents',
     requestText: 'I need to upload my new insurance card. My insurance changed last month.',
     status: CaseStatus.AI_PROCESSED,
-    workflowState: WorkflowStates.READY_REVIEW,
+    workflowState: WorkflowStates.ready_for_review,
     priority: Priority.LOW,
     aiConfidence: 96,
     aiSummary: 'Existing patient updating insurance information. New insurance card has been uploaded and verified. Case is ready for administrative update.',
@@ -379,7 +379,7 @@ const seedCases = [
       { state: 'understanding', label: 'AI processing request', timestamp: hoursAgo(5), completed: true },
       { state: 'extracted', label: 'Information extracted', timestamp: hoursAgo(4), completed: true },
       { state: 'validation', label: 'Document verified', timestamp: hoursAgo(4), completed: true },
-      { state: 'ready_review', label: 'Ready for staff action', timestamp: hoursAgo(3), completed: true, active: true },
+      { state: 'ready_for_review', label: 'Ready for staff action', timestamp: hoursAgo(3), completed: true, active: true },
     ],
     activity: [
       { type: 'system', text: 'Case created', timestamp: hoursAgo(5) },
@@ -442,7 +442,7 @@ const seedCases = [
     requestTypeLabel: 'Referral / Authorization',
     requestText: 'My doctor sent a referral for me. I need to make an appointment with a specialist.',
     status: CaseStatus.AI_PROCESSED,
-    workflowState: WorkflowStates.READY_REVIEW,
+    workflowState: WorkflowStates.ready_for_review,
     priority: Priority.HIGH,
     aiConfidence: 91,
     aiSummary: 'Existing patient with a referral from their primary care physician, requesting an appointment with a specialist. Referral document received. All required information appears to be in order.',
@@ -466,7 +466,7 @@ const seedCases = [
       { state: 'understanding', label: 'AI processing request', timestamp: hoursAgo(3), completed: true },
       { state: 'extracted', label: 'Information extracted', timestamp: hoursAgo(2), completed: true },
       { state: 'validation', label: 'Validation complete', timestamp: hoursAgo(2), completed: true },
-      { state: 'ready_review', label: 'Ready for staff review', timestamp: hoursAgo(1), completed: true, active: true },
+      { state: 'ready_for_review', label: 'Ready for staff review', timestamp: hoursAgo(1), completed: true, active: true },
     ],
     activity: [
       { type: 'system', text: 'Case created', timestamp: hoursAgo(3) },
@@ -599,3 +599,23 @@ function formatDate(iso) {
   if (!iso) return '';
   return new Date(iso).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 }
+
+// ── Backend Sync ──────────────────────────────────────────────────────────────
+setInterval(async () => {
+  try {
+    const res = await fetch(`${window.AppConfig.API_BASE_URL}/api/cases`);
+    const data = await res.json();
+    if (data && Array.isArray(data)) {
+      AppState.cases = data;
+      // Trigger dashboard render if active
+      if (typeof renderDashboard === 'function' && document.getElementById('viewDashboard')?.classList.contains('is-active')) {
+        renderDashboard();
+      }
+      if (typeof renderCaseQueue === 'function' && document.getElementById('viewCaseQueue')?.classList.contains('is-active')) {
+        renderCaseQueue();
+      }
+    }
+  } catch (e) {
+    // console.error('Failed to sync backend', e);
+  }
+}, 3000);
