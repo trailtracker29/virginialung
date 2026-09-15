@@ -7,7 +7,7 @@
 window.AppConfig = {
   // Default to local backend.
   // For production, set API_BASE_URL to your Render backend URL.
-  API_BASE_URL: 'http://localhost:3000',
+  API_BASE_URL: 'https://virginialung-backend.onrender.com',
   
   // Production n8n Webhook for Intake
   INTAKE_WEBHOOK_URL: 'https://saish2005.app.n8n.cloud/webhook/virginia-lung-intake'
