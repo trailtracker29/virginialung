@@ -6,7 +6,10 @@ class AIEngine {
       console.warn('No GEMINI_API_KEY provided, using mock AI engine');
       this.ai = null;
     } else {
-      this.ai = new GoogleGenAI({ apiKey });
+      this.ai = new GoogleGenAI({ 
+        apiKey,
+        httpOptions: { apiVersion: 'v1' }
+      });
     }
   }
 
@@ -52,7 +55,7 @@ Patient Request:
       return JSON.parse(responseText);
     } catch (e) {
       console.error('Gemini extraction failed:', e);
-      throw new Error('AI extraction failed');
+      throw new Error('AI extraction failed: ' + (e.message || JSON.stringify(e)));
     }
   }
 }
