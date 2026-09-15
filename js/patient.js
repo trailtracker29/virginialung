@@ -480,7 +480,8 @@ async function submitCase() {
   };
 
   try {
-    const response = await fetch(`${window.AppConfig.API_BASE_URL}/api/intake`, {
+    const targetUrl = window.AppConfig.INTAKE_WEBHOOK_URL || `${window.AppConfig.API_BASE_URL}/api/intake`;
+    const response = await fetch(targetUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
