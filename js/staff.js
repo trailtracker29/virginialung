@@ -519,28 +519,30 @@ function goBackFromDetail() {
 
 // ── Case Actions ──────────────────────────────────────────────────────────────
 
-function actionApprove(caseId) {
+async function actionApprove(caseId) {
   const c = AppState.getCaseById(caseId);
   if (!c) return;
 
-  AppState.updateCase(caseId, {
-    status: CaseStatus.READY_ACTION,
-    workflowState: WorkflowStates.APPROVED,
-  });
+  try {
+    const res = await fetch(`${window.AppConfig.API_BASE_URL}/api/cases/${caseId}/action`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'approve' })
+    });
+    
+    if (!res.ok) throw new Error('Network response was not ok');
+    const result = await res.json();
+    if (!result.success) throw new Error(result.error || 'Failed to approve');
 
-  AppState.addActivity(caseId, {
-    type: 'staff',
-    text: 'Staff approved recommendation. Case marked ready for action.',
-  });
-
-  AppState.addTimelineEntry(caseId, {
-    state: 'approved',
-    label: 'Approved by staff',
-  });
-
-  showToast('Case approved ✓', 'success');
-  openCaseDetail(caseId);
-  renderDashboard();
+    // Update local state temporarily for immediate UI response
+    AppState.updateCase(caseId, result.caseData);
+    
+    showToast('Case approved ✓', 'success');
+    openCaseDetail(caseId);
+    renderDashboard();
+  } catch (error) {
+    showToast('Error approving case: ' + error.message, 'danger');
+  }
 }
 
 function actionEdit(caseId) {
@@ -550,25 +552,42 @@ function actionEdit(caseId) {
   document.getElementById('editRecAction').value = c.recommendedAction;
   document.getElementById('editRecReason').value = c.actionReason;
 
-  document.getElementById('saveEditRecBtn').onclick = () => {
+  document.getElementById('saveEditRecBtn').onclick = async () => {
     const newAction = document.getElementById('editRecAction').value.trim();
     const newReason = document.getElementById('editRecReason').value.trim();
 
     if (!newAction) { showToast('Please enter a recommended action', 'warning'); return; }
 
-    AppState.updateCase(caseId, {
-      recommendedAction: newAction,
-      actionReason: newReason,
-    });
+    const btn = document.getElementById('saveEditRecBtn');
+    const originalText = btn.textContent;
+    btn.textContent = 'Saving...';
+    btn.disabled = true;
 
-    AppState.addActivity(caseId, {
-      type: 'staff',
-      text: `Staff edited AI recommendation: "${newAction}"`,
-    });
+    try {
+      const res = await fetch(`${window.AppConfig.API_BASE_URL}/api/cases/${caseId}/action`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'edit_recommendation',
+          recommendationAction: newAction,
+          recommendationReason: newReason
+        })
+      });
 
-    closeModal('editRecModal');
-    showToast('Recommendation updated', 'success');
-    openCaseDetail(caseId);
+      if (!res.ok) throw new Error('Network error');
+      const result = await res.json();
+      if (!result.success) throw new Error(result.error);
+
+      AppState.updateCase(caseId, result.caseData);
+      closeModal('editRecModal');
+      showToast('Recommendation updated', 'success');
+      openCaseDetail(caseId);
+    } catch (error) {
+      showToast('Error updating recommendation: ' + error.message, 'danger');
+    } finally {
+      btn.textContent = originalText;
+      btn.disabled = false;
+    }
   };
 
   openModal('editRecModal');
@@ -585,29 +604,40 @@ function actionRequestInfo(caseId) {
 
   document.getElementById('requestInfoText').value = missing;
 
-  document.getElementById('sendInfoRequestBtn').onclick = () => {
+  document.getElementById('sendInfoRequestBtn').onclick = async () => {
     const msg = document.getElementById('requestInfoText').value.trim();
     if (!msg) { showToast('Please enter a message', 'warning'); return; }
 
-    AppState.updateCase(caseId, {
-      status: CaseStatus.WAITING_USER,
-      workflowState: WorkflowStates.WAITING_USER,
-    });
+    const btn = document.getElementById('sendInfoRequestBtn');
+    const originalText = btn.textContent;
+    btn.textContent = 'Sending...';
+    btn.disabled = true;
 
-    AppState.addActivity(caseId, {
-      type: 'staff',
-      text: 'Information request sent to patient: "' + msg.substring(0, 60) + (msg.length > 60 ? '...' : '') + '"',
-    });
+    try {
+      const res = await fetch(`${window.AppConfig.API_BASE_URL}/api/cases/${caseId}/action`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'request_info',
+          requestInfoText: msg
+        })
+      });
 
-    AppState.addTimelineEntry(caseId, {
-      state: 'waiting_user',
-      label: 'Waiting for patient response',
-    });
+      if (!res.ok) throw new Error('Network error');
+      const result = await res.json();
+      if (!result.success) throw new Error(result.error);
 
-    closeModal('requestInfoModal');
-    showToast('Information request sent to patient', 'success');
-    openCaseDetail(caseId);
-    renderDashboard();
+      AppState.updateCase(caseId, result.caseData);
+      closeModal('requestInfoModal');
+      showToast('Information request sent to patient', 'success');
+      openCaseDetail(caseId);
+      renderDashboard();
+    } catch (error) {
+      showToast('Error sending request: ' + error.message, 'danger');
+    } finally {
+      btn.textContent = originalText;
+      btn.disabled = false;
+    }
   };
 
   openModal('requestInfoModal');
@@ -628,29 +658,38 @@ function actionEscalate(caseId) {
   const confirmBtn = document.getElementById('confirmModalBtn');
   confirmBtn.className = 'btn btn--danger';
   confirmBtn.textContent = 'Escalate Case';
-  confirmBtn.onclick = () => {
+  confirmBtn.disabled = false;
+  
+  confirmBtn.onclick = async () => {
     const reason = document.getElementById('escalationReason')?.value || 'No reason provided';
+    
+    confirmBtn.textContent = 'Escalating...';
+    confirmBtn.disabled = true;
 
-    AppState.updateCase(caseId, {
-      status: CaseStatus.ESCALATED,
-      workflowState: WorkflowStates.ESCALATED,
-      humanReviewRequired: true,
-    });
+    try {
+      const res = await fetch(`${window.AppConfig.API_BASE_URL}/api/cases/${caseId}/action`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'escalate',
+          escalationReason: reason
+        })
+      });
 
-    AppState.addActivity(caseId, {
-      type: 'staff',
-      text: 'Case escalated: "' + reason + '"',
-    });
+      if (!res.ok) throw new Error('Network error');
+      const result = await res.json();
+      if (!result.success) throw new Error(result.error);
 
-    AppState.addTimelineEntry(caseId, {
-      state: 'escalated',
-      label: 'Escalated to specialist',
-    });
-
-    closeModal('confirmModal');
-    showToast('Case escalated', 'warning');
-    openCaseDetail(caseId);
-    renderDashboard();
+      AppState.updateCase(caseId, result.caseData);
+      closeModal('confirmModal');
+      showToast('Case escalated', 'warning');
+      openCaseDetail(caseId);
+      renderDashboard();
+    } catch (error) {
+      showToast('Error escalating case: ' + error.message, 'danger');
+      confirmBtn.textContent = 'Escalate Case';
+      confirmBtn.disabled = false;
+    }
   };
 
   openModal('confirmModal');
@@ -667,26 +706,33 @@ function actionMarkComplete(caseId) {
   const confirmBtn = document.getElementById('confirmModalBtn');
   confirmBtn.className = 'btn btn--success';
   confirmBtn.textContent = 'Mark Complete';
-  confirmBtn.onclick = () => {
-    AppState.updateCase(caseId, {
-      status: CaseStatus.COMPLETED,
-      workflowState: WorkflowStates.COMPLETED,
-    });
+  confirmBtn.disabled = false;
+  
+  confirmBtn.onclick = async () => {
+    confirmBtn.textContent = 'Marking...';
+    confirmBtn.disabled = true;
 
-    AppState.addActivity(caseId, {
-      type: 'staff',
-      text: 'Case marked as completed by staff.',
-    });
+    try {
+      const res = await fetch(`${window.AppConfig.API_BASE_URL}/api/cases/${caseId}/action`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'complete' })
+      });
 
-    AppState.addTimelineEntry(caseId, {
-      state: 'completed',
-      label: 'Case completed',
-    });
+      if (!res.ok) throw new Error('Network error');
+      const result = await res.json();
+      if (!result.success) throw new Error(result.error);
 
-    closeModal('confirmModal');
-    showToast('Case marked complete ✓', 'success');
-    openCaseDetail(caseId);
-    renderDashboard();
+      AppState.updateCase(caseId, result.caseData);
+      closeModal('confirmModal');
+      showToast('Case marked complete ✓', 'success');
+      openCaseDetail(caseId);
+      renderDashboard();
+    } catch (error) {
+      showToast('Error completing case: ' + error.message, 'danger');
+      confirmBtn.textContent = 'Mark Complete';
+      confirmBtn.disabled = false;
+    }
   };
 
   openModal('confirmModal');
