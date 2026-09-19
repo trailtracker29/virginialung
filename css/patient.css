@@ -701,3 +701,75 @@ body.patient-body {
   .welcome-hero { padding: 32px 0 24px; }
   .welcome-hero h1 { font-size: 1.8rem; }
 }
+
+/* ── Voice Assistant ──────────────────────────────────────────────────────── */
+
+.voice-assistant-panel {
+  display: none;
+}
+
+body.voice-mode-active .patient-container {
+  max-width: 1000px;
+}
+
+body.voice-mode-active .voice-layout-wrapper {
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  gap: 32px;
+}
+
+@media (max-width: 800px) {
+  body.voice-mode-active .voice-layout-wrapper {
+    grid-template-columns: 1fr;
+  }
+}
+
+body.voice-mode-active .voice-assistant-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #1E3A8A, #3B82F6);
+  border-radius: var(--radius-xl);
+  padding: 40px 24px;
+  position: sticky;
+  top: 100px;
+  height: 300px;
+  box-shadow: 0 10px 30px rgba(59, 130, 246, 0.3);
+  text-align: center;
+}
+
+.voice-orb {
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 30% 30%, #93C5FD, #2563EB);
+  box-shadow: 0 0 20px rgba(147, 197, 253, 0.6);
+  margin-bottom: 24px;
+  transition: all 0.3s ease;
+}
+
+.voice-orb.is-listening {
+  animation: orb-pulse 1.5s infinite alternate;
+}
+
+@keyframes orb-pulse {
+  0% { transform: scale(1); box-shadow: 0 0 20px rgba(147, 197, 253, 0.6); }
+  100% { transform: scale(1.15); box-shadow: 0 0 40px rgba(147, 197, 253, 0.9), 0 0 80px rgba(255, 255, 255, 0.4); }
+}
+
+.voice-status {
+  color: #fff;
+  font-size: 1.1rem;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.field-confirmed {
+  animation: confirm-flash 1.5s ease;
+}
+
+@keyframes confirm-flash {
+  0% { background-color: var(--color-success-bg); border-color: var(--color-success); }
+  100% { background-color: transparent; border-color: var(--color-neutral-300); }
+}

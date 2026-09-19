@@ -36,6 +36,7 @@
       <nav class="patient-header__nav">
         <a href="#" class="nav-link active" id="navNewRequest" onclick="showView('viewRequest'); return false;">New Request</a>
         <a href="#" class="nav-link" id="navCaseStatus" onclick="showView('viewCaseStatus'); return false;">My Cases</a>
+        <a href="#" class="nav-link" style="color: var(--color-primary); font-weight: 600;" id="voiceToggleBtn" onclick="toggleVoiceMode(); return false;">Start Voice Mode</a>
         <a href="#" class="nav-link">Help</a>
       </nav>
     </div>
@@ -47,7 +48,14 @@
     <!-- ═══════════════════════════════════════════════════════════════════════
          VIEW: New Request Flow (Steps 1–7)
     ════════════════════════════════════════════════════════════════════════════ -->
-    <div id="viewRequest" class="patient-view is-active">
+    <div id="viewRequest" class="patient-view is-active voice-layout-wrapper">
+      
+      <!-- ── Voice Assistant Panel (Hidden by default) ── -->
+      <div id="voiceAssistantPanel" class="voice-assistant-panel">
+        <div class="voice-orb" id="voiceOrb"></div>
+        <div class="voice-status" id="voiceStatusText">Voice Assistant ready.</div>
+      </div>
+
 
       <!-- ── Step 1: Welcome / Request Type ── -->
       <div id="step1" class="step-section">
@@ -598,5 +606,6 @@
   <script src="js/mock-data.js"></script>
   <script src="js/app.js"></script>
   <script src="js/patient.js"></script>
+  <script src="js/voice.js"></script>
 </body>
 </html>
