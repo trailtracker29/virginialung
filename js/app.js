@@ -10,7 +10,7 @@ window.AppConfig = {
   API_BASE_URL: 'https://virginialung-backend.onrender.com',
   
   // Production n8n Webhook for Intake
-  INTAKE_WEBHOOK_URL: 'https://saish2005.app.n8n.cloud/webhook/virginia-lung-intake'
+  INTAKE_WEBHOOK_URL: null
 };
 
 // ── Toast Notifications ───────────────────────────────────────────────────────
