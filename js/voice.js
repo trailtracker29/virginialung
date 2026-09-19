@@ -149,28 +149,39 @@ class VoiceAssistant {
   listen() {
     return new Promise((resolve) => {
       this.recognition = new this.SpeechRecognition();
+      this.recognition.lang = 'en-IN';
       this.recognition.continuous = false;
       this.recognition.interimResults = false;
-      
-      this.updateStatus("Listening...");
-      document.getElementById('voiceOrb')?.classList.add('is-listening');
+
+      this.recognition.onstart = () => {
+        console.log("[Voice] recognition onstart");
+        this.updateStatus("Listening...");
+        document.getElementById('voiceOrb')?.classList.add('is-listening');
+      };
+
+      this.recognition.onaudiostart = () => {
+        console.log("[Voice] audio start");
+      };
 
       this.recognition.onresult = (event) => {
         const transcript = event.results[0][0].transcript;
+        console.log("[Voice] result: ", transcript);
         resolve(transcript);
       };
 
       this.recognition.onerror = (e) => {
-        console.error("Speech recognition error", e.error);
+        console.error("[Voice] error", e.error);
         resolve(null);
       };
 
       this.recognition.onend = () => {
+        console.log("[Voice] end");
         document.getElementById('voiceOrb')?.classList.remove('is-listening');
         resolve(null); // Resolve with null if nothing was picked up
       };
 
       try {
+        console.log("[Voice] recognition start requested");
         this.recognition.start();
       } catch (e) {
         console.error("Failed to start recognition", e);
