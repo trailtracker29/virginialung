@@ -50,8 +50,14 @@ class VoiceAssistant {
   }
 
   init() {
-    // Bind global toggle for patient.html
-    window.toggleVoiceMode = () => this.toggle();
+    // Bind event listener for voice mode toggle
+    const toggleBtn = document.getElementById('voiceToggleBtn');
+    if (toggleBtn) {
+      toggleBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        this.toggle();
+      });
+    }
   }
 
   async toggle() {
