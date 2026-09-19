@@ -34,6 +34,24 @@ const supabase = supabaseKey ? createClient(supabaseUrl, supabaseKey) : null;
 // Initialize Engine
 const engine = new WorkflowEngine(config, process.env.GEMINI_API_KEY);
 
+// Voice Token endpoint for Gemini Live
+app.get('/api/voice/token', async (req, res) => {
+  try {
+    if (!engine.ai || !engine.ai.ai) {
+      return res.status(503).json({ error: 'Gemini AI engine is not configured' });
+    }
+    const tokenResponse = await engine.ai.ai.authTokens.create({
+      authToken: {
+        model: 'models/gemini-3.8-live'
+      }
+    });
+    res.json(tokenResponse);
+  } catch (error) {
+    console.error('Voice token generation error:', error);
+    res.status(500).json({ error: 'Failed to generate voice token' });
+  }
+});
+
 // Health check
 app.get('/health', (req, res) => res.json({ status: 'ok', hasSupabase: !!supabase }));
 
