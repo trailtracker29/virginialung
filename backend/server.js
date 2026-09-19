@@ -56,7 +56,7 @@ app.get('/api/voice/token', async (req, res) => {
         uses: 1,
         expireTime: expireTime,
         liveConnectConstraints: {
-          model: 'models/gemini-3.8-live',
+          model: 'gemini-3.8-live',
           config: {
             sessionResumption: {},
             responseModalities: ['AUDIO']
