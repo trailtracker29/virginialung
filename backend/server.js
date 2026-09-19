@@ -2,6 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const { createClient } = require('@supabase/supabase-js');
+const { GoogleGenAI } = require('@google/genai');
 const WorkflowEngine = require('./engine/core');
 const config = require('./config/virginialung');
 
@@ -41,10 +42,16 @@ app.get('/api/voice/token', async (req, res) => {
       return res.status(503).json({ error: 'Gemini AI engine is not configured' });
     }
     
+    // Create a dedicated v1beta client since authTokens.create is a v1beta endpoint
+    const liveClient = new GoogleGenAI({ 
+      apiKey: process.env.GEMINI_API_KEY, 
+      httpOptions: { apiVersion: 'v1beta' } 
+    });
+
     // Create an expiration time roughly 30 minutes from now (in RFC3339 format)
     const expireTime = new Date(Date.now() + 30 * 60 * 1000).toISOString();
     
-    const tokenResponse = await engine.ai.ai.authTokens.create({
+    const tokenResponse = await liveClient.authTokens.create({
       config: {
         uses: 1,
         expireTime: expireTime,
