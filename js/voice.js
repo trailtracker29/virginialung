@@ -1,36 +1,60 @@
-/**
- * Patient Portal — Voice-First Logic
- * Adds optional voice-driven intake using Web Speech API
- */
+import { GoogleGenAI, Modality } from '@google/genai';
 
 class VoiceAssistant {
   constructor() {
     this.isActive = false;
-    this.currentStepIndex = 0;
+    this.session = null;
+    this.audioContext = null;
+    this.audioQueue = [];
+    this.isPlaying = false;
+    this.nextAudioTime = 0;
+    this.mediaStream = null;
+    this.scriptProcessor = null;
     
-    // Check support
-    this.SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    this.synthesis = window.speechSynthesis;
-    
-    this.flow = [
-      { id: 'firstName', q: "What is your first name?", step: 2 },
-      { id: 'lastName', q: "What is your last name?", step: 2 },
-      { id: 'dob', q: "What is your date of birth?", step: 2 },
-      { id: 'phone', q: "What is your phone number?", step: 2 },
-      { id: 'email', q: "What is your email address?", step: 2 },
-      { id: 'patientType', q: "Are you a new or existing patient?", step: 2 },
-      { id: 'requestText', q: "Please tell me in your own words why you are contacting the clinic.", step: 3 }
+    // Tools defined for Gemini Live
+    this.tools = [
+      {
+        functionDeclarations: [
+          {
+            name: "update_form_field",
+            description: "Updates a specific form field when the patient confirms an answer.",
+            parameters: {
+              type: "OBJECT",
+              properties: {
+                field: {
+                  type: "STRING",
+                  enum: ["firstName", "lastName", "dateOfBirth", "phone", "email", "patientType", "requestText"]
+                },
+                value: { type: "STRING" }
+              },
+              required: ["field", "value"]
+            }
+          },
+          {
+            name: "finish_intake",
+            description: "Call this ONLY after all required information is collected and the patient has confirmed the final summary.",
+            parameters: {
+              type: "OBJECT",
+              properties: {}
+            }
+          }
+        ]
+      }
     ];
+
+    this.systemInstruction = {
+      parts: [{
+        text: "You are a patient intake assistant. Collect exactly these 7 fields: firstName, lastName, dateOfBirth, phone, email, patientType, requestText. Speak naturally. Ask one useful question at a time. Avoid unnecessary medical advice, diagnosing, or inventing info. Clarify uncertain values. Use the update_form_field tool when information is explicitly confirmed. Do not call finish_intake until all information is collected and the final summary is confirmed by the patient. Never claim that a submission happened."
+      }]
+    };
   }
 
   init() {
-    if (!this.SpeechRecognition || !this.synthesis) {
-      console.warn("Web Speech API not supported in this browser.");
-      return;
-    }
+    // Bind global toggle for patient.html
+    window.toggleVoiceMode = () => this.toggle();
   }
 
-  toggle() {
+  async toggle() {
     this.isActive = !this.isActive;
     document.body.classList.toggle('voice-mode-active', this.isActive);
     
@@ -40,154 +64,306 @@ class VoiceAssistant {
     }
 
     if (this.isActive) {
-      this.startVoiceFlow();
+      await this.startVoiceFlow();
     } else {
       this.stopAll();
     }
   }
 
   stopAll() {
-    this.synthesis.cancel();
-    if (this.recognition) {
-      this.recognition.stop();
+    this.isActive = false;
+    if (this.session) {
+      try { this.session.close(); } catch (e) {}
+      this.session = null;
     }
+    
+    if (this.mediaStream) {
+      this.mediaStream.getTracks().forEach(t => t.stop());
+      this.mediaStream = null;
+    }
+    if (this.scriptProcessor) {
+      this.scriptProcessor.disconnect();
+      this.scriptProcessor = null;
+    }
+    if (this.audioContext) {
+      this.audioContext.close();
+      this.audioContext = null;
+    }
+    this.audioQueue = [];
+    this.isPlaying = false;
+    
     this.updateStatus('Voice mode deactivated.');
+    const orb = document.getElementById('voiceOrb');
+    if (orb) {
+      orb.classList.remove('is-listening', 'is-speaking', 'is-processing');
+    }
   }
 
   async startVoiceFlow() {
     // If not past step 1, simulate selecting "Other" to proceed to form fields
-    if (PatientState.currentStep < 2) {
+    if (window.PatientState && window.PatientState.currentStep < 2) {
       const otherBtn = document.querySelector('.request-type-card[data-type="other"]');
-      if (otherBtn) selectRequestType(otherBtn);
-      goToStep2();
+      if (otherBtn && window.selectRequestType) window.selectRequestType(otherBtn);
+      if (window.goToStep2) window.goToStep2();
     }
     
-    this.currentStepIndex = 0;
-    await this.processNextField();
+    try {
+      this.updateStatus('Connecting...');
+      
+      // Request mic
+      this.mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      
+      // Audio context setup (Gemini Live expects 16kHz PCM)
+      this.audioContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
+      const source = this.audioContext.createMediaStreamSource(this.mediaStream);
+      
+      // Use script processor for mic recording
+      this.scriptProcessor = this.audioContext.createScriptProcessor(4096, 1, 1);
+      source.connect(this.scriptProcessor);
+      this.scriptProcessor.connect(this.audioContext.destination);
+      
+      this.scriptProcessor.onaudioprocess = (e) => {
+        if (!this.isActive || !this.session) return;
+        const pcmData = e.inputBuffer.getChannelData(0);
+        // Convert Float32 to Int16
+        const int16Data = new Int16Array(pcmData.length);
+        for (let i = 0; i < pcmData.length; i++) {
+          let s = Math.max(-1, Math.min(1, pcmData[i]));
+          int16Data[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+        }
+        const b64 = this.arrayBufferToBase64(int16Data.buffer);
+        
+        try {
+          this.session.send({
+            realtimeInput: {
+              mediaChunks: [{
+                mimeType: "audio/pcm;rate=16000",
+                data: b64
+              }]
+            }
+          });
+        } catch (err) {}
+      };
+
+      // Fetch Ephemeral Token
+      const res = await fetch('/api/voice/token');
+      if (!res.ok) throw new Error('Token fetch failed');
+      const tokenData = await res.json();
+      
+      const ephemeralKey = tokenData.name || tokenData.value;
+
+      if (!ephemeralKey) {
+          throw new Error('Voice token response did not contain a usable token');
+      }
+
+      const ai = new GoogleGenAI({
+          apiKey: ephemeralKey
+      });
+      
+      this.session = await ai.live.connect({
+        model: 'gemini-3.8-live',
+        config: {
+          responseModalities: [Modality.AUDIO],
+          systemInstruction: this.systemInstruction,
+          tools: this.tools
+        }
+      });
+      
+      this.updateStatus('Listening...');
+      document.getElementById('voiceOrb')?.classList.add('is-listening');
+      
+      this.listenToSession();
+
+    } catch (e) {
+      console.error(e);
+      this.updateStatus('Error connecting to Voice Assistant.');
+      this.stopAll();
+    }
+  }
+  
+  async listenToSession() {
+    if (!this.session) return;
+    try {
+      for await (const message of this.session) {
+        if (!this.isActive) break;
+        this.handleMessage(message);
+      }
+    } catch (e) {
+      console.error('Session error or closed:', e);
+      if (this.isActive) {
+        this.updateStatus('Connection lost.');
+        this.stopAll();
+      }
+    }
   }
 
-  async processNextField() {
-    if (!this.isActive) return;
-
-    if (this.currentStepIndex >= this.flow.length) {
-      await this.speakAndDisplay("I have all the information needed. Please review your request and click submit.");
-      goToStep4(); // Navigate to Check step
-      return;
+  handleMessage(message) {
+    if (message.serverContent && message.serverContent.modelTurn) {
+      const parts = message.serverContent.modelTurn.parts;
+      if (parts) {
+        for (const part of parts) {
+          if (part.inlineData) {
+            this.queueAudio(part.inlineData.data);
+          }
+        }
+      }
+    } else if (message.toolCall) {
+      this.handleToolCall(message.toolCall);
     }
-
-    const field = this.flow[this.currentStepIndex];
     
-    // Ensure UI is on the correct step card
-    if (PatientState.currentStep !== field.step) {
-      showStepCard(field.step);
-    }
-
-    // Loop until confirmed
-    let confirmed = false;
-    while (!confirmed && this.isActive) {
-      await this.speakAndDisplay(field.q);
-      const answer = await this.listen();
-      
-      if (!this.isActive) return;
-      if (!answer) {
-        await this.speakAndDisplay("I didn't catch that. Let's try again.");
-        continue;
-      }
-
-      await this.speakAndDisplay(`I heard ${answer}. Is that correct?`);
-      const confirmAns = await this.listen();
-      
-      if (!this.isActive) return;
-      
-      if (confirmAns && confirmAns.toLowerCase().includes("yes")) {
-        this.updateDOMField(field.id, answer);
-        confirmed = true;
-      } else {
-        await this.speakAndDisplay("Okay, let's try again.");
+    // Check if interrupted by user
+    if (message.serverContent && message.serverContent.interrupted) {
+      this.audioQueue = [];
+      this.isPlaying = false;
+      this.nextAudioTime = 0;
+      if (this.audioContext) {
+        this.audioContext.close();
+        this.audioContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
+        const source = this.audioContext.createMediaStreamSource(this.mediaStream);
+        source.connect(this.scriptProcessor);
+        this.scriptProcessor.connect(this.audioContext.destination);
+        
+        document.getElementById('voiceOrb')?.classList.remove('is-speaking');
+        document.getElementById('voiceOrb')?.classList.add('is-listening');
+        this.updateStatus('Listening...');
       }
     }
+  }
 
-    if (this.isActive) {
-      this.currentStepIndex++;
-      this.processNextField();
+  handleToolCall(toolCall) {
+    const functionCalls = toolCall.functionCalls;
+    if (!functionCalls) return;
+    
+    for (const call of functionCalls) {
+      if (call.name === 'update_form_field') {
+        const { field, value } = call.args;
+        this.updateDOMField(field, value);
+        
+        if (this.session) {
+          try {
+            this.session.send({
+              toolResponse: {
+                functionResponses: [{
+                  id: call.id,
+                  response: { result: "ok" }
+                }]
+              }
+            });
+          } catch(e) {}
+        }
+      } else if (call.name === 'finish_intake') {
+        if (this.session) {
+          try {
+            this.session.send({
+              toolResponse: {
+                functionResponses: [{
+                  id: call.id,
+                  response: { result: "ok" }
+                }]
+              }
+            });
+          } catch(e) {}
+        }
+        this.finishIntake();
+      }
+    }
+  }
+
+  finishIntake() {
+    this.stopAll();
+    if (window.goToStep6) {
+      window.goToStep6();
     }
   }
 
   updateDOMField(fieldId, value) {
     if (fieldId === 'patientType') {
       const type = value.toLowerCase().includes('existing') ? 'existing' : 'new';
-      setPatientType(type);
+      if (window.setPatientType) window.setPatientType(type);
       return;
     }
 
     const input = document.getElementById(fieldId);
     if (input) {
-      // Basic formatting
       let formatted = value;
       if (fieldId === 'email') {
-        formatted = value.toLowerCase().replace(/\s+/g, '');
-        formatted = formatted.replace(/at/g, '@').replace(/dot/g, '.');
+        formatted = value.toLowerCase().replace(/\s+/g, '').replace(/at/g, '@').replace(/dot/g, '.');
       }
       
       input.value = formatted;
+      
+      if (window.PatientState) {
+        window.PatientState[fieldId] = formatted;
+      }
+      
       input.classList.add('field-confirmed');
       setTimeout(() => input.classList.remove('field-confirmed'), 2000);
     }
   }
 
-  speakAndDisplay(text) {
-    return new Promise((resolve) => {
-      this.updateStatus(text);
-      this.synthesis.cancel(); // clear queue
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.onend = resolve;
-      utterance.onerror = resolve;
-      this.synthesis.speak(utterance);
-    });
+  queueAudio(base64Data) {
+    this.audioQueue.push(base64Data);
+    if (!this.isPlaying) {
+      this.playNextAudio();
+    }
   }
 
-  listen() {
-    return new Promise((resolve) => {
-      this.recognition = new this.SpeechRecognition();
-      this.recognition.lang = 'en-IN';
-      this.recognition.continuous = false;
-      this.recognition.interimResults = false;
+  async playNextAudio() {
+    if (this.audioQueue.length === 0) {
+      this.isPlaying = false;
+      document.getElementById('voiceOrb')?.classList.remove('is-speaking');
+      document.getElementById('voiceOrb')?.classList.add('is-listening');
+      this.updateStatus('Listening...');
+      return;
+    }
+    
+    this.isPlaying = true;
+    document.getElementById('voiceOrb')?.classList.remove('is-listening');
+    document.getElementById('voiceOrb')?.classList.add('is-speaking');
+    this.updateStatus('Speaking...');
+    
+    const base64Data = this.audioQueue.shift();
+    const binaryStr = window.atob(base64Data);
+    const len = binaryStr.length;
+    const bytes = new Uint8Array(len);
+    for (let i = 0; i < len; i++) {
+        bytes[i] = binaryStr.charCodeAt(i);
+    }
+    
+    const int16Array = new Int16Array(bytes.buffer);
+    const float32Array = new Float32Array(int16Array.length);
+    for (let i = 0; i < int16Array.length; i++) {
+      float32Array[i] = int16Array[i] / 32768.0;
+    }
+    
+    if (!this.audioContext) return;
+    const audioBuffer = this.audioContext.createBuffer(1, float32Array.length, 16000);
+    audioBuffer.copyToChannel(float32Array, 0);
+    
+    const source = this.audioContext.createBufferSource();
+    source.buffer = audioBuffer;
+    source.connect(this.audioContext.destination);
+    
+    source.onended = () => {
+      this.playNextAudio();
+    };
+    
+    const currentTime = this.audioContext.currentTime;
+    if (this.nextAudioTime < currentTime) {
+      this.nextAudioTime = currentTime;
+    }
+    source.start(this.nextAudioTime);
+    this.nextAudioTime += audioBuffer.duration;
+  }
 
-      this.recognition.onstart = () => {
-        console.log("[Voice] recognition onstart");
-        this.updateStatus("Listening...");
-        document.getElementById('voiceOrb')?.classList.add('is-listening');
-      };
-
-      this.recognition.onaudiostart = () => {
-        console.log("[Voice] audio start");
-      };
-
-      this.recognition.onresult = (event) => {
-        const transcript = event.results[0][0].transcript;
-        console.log("[Voice] result: ", transcript);
-        resolve(transcript);
-      };
-
-      this.recognition.onerror = (e) => {
-        console.error("[Voice] error", e.error);
-        resolve(null);
-      };
-
-      this.recognition.onend = () => {
-        console.log("[Voice] end");
-        document.getElementById('voiceOrb')?.classList.remove('is-listening');
-        resolve(null); // Resolve with null if nothing was picked up
-      };
-
-      try {
-        console.log("[Voice] recognition start requested");
-        this.recognition.start();
-      } catch (e) {
-        console.error("Failed to start recognition", e);
-        resolve(null);
-      }
-    });
+  arrayBufferToBase64(buffer) {
+    let binary = '';
+    let bytes = new Uint8Array(buffer);
+    let len = bytes.byteLength;
+    for (let i = 0; i < len; i++) {
+        binary += String.fromCharCode(bytes[i]);
+    }
+    return window.btoa(binary);
   }
 
   updateStatus(text) {
@@ -202,7 +378,3 @@ const voiceAssistant = new VoiceAssistant();
 document.addEventListener('DOMContentLoaded', () => {
   voiceAssistant.init();
 });
-
-function toggleVoiceMode() {
-  voiceAssistant.toggle();
-}
