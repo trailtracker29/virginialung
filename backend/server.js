@@ -40,14 +40,31 @@ app.get('/api/voice/token', async (req, res) => {
     if (!engine.ai || !engine.ai.ai) {
       return res.status(503).json({ error: 'Gemini AI engine is not configured' });
     }
+    
+    // Create an expiration time roughly 30 minutes from now (in RFC3339 format)
+    const expireTime = new Date(Date.now() + 30 * 60 * 1000).toISOString();
+    
     const tokenResponse = await engine.ai.ai.authTokens.create({
-      authToken: {
-        model: 'models/gemini-3.8-live'
+      config: {
+        uses: 1,
+        expireTime: expireTime,
+        liveConnectConstraints: {
+          model: 'models/gemini-3.8-live',
+          config: {
+            sessionResumption: {},
+            responseModalities: ['AUDIO']
+          }
+        }
       }
     });
     res.json(tokenResponse);
   } catch (error) {
-    console.error('Voice token generation error:', error);
+    console.error('Voice token generation error details:', {
+      name: error.name,
+      message: error.message,
+      status: error.status || error.code,
+      details: error.details || error.response?.data
+    });
     res.status(500).json({ error: 'Failed to generate voice token' });
   }
 });
