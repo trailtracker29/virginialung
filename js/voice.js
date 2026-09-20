@@ -152,7 +152,8 @@ class VoiceAssistant {
       };
 
       // Fetch Ephemeral Token
-      const res = await fetch('/api/voice/token');
+      const tokenUrl = `${window.AppConfig.API_BASE_URL}/api/voice/token`;
+      const res = await fetch(tokenUrl);
       if (!res.ok) throw new Error('Token fetch failed');
       const tokenData = await res.json();
       
