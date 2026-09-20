@@ -164,7 +164,8 @@ class VoiceAssistant {
       }
 
       const ai = new GoogleGenAI({
-          apiKey: ephemeralKey
+          apiKey: ephemeralKey,
+          httpOptions: { apiVersion: 'v1alpha' }
       });
       
       this.session = await ai.live.connect({
