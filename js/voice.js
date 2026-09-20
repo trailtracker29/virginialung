@@ -31,6 +31,20 @@ class VoiceAssistant {
             }
           },
           {
+            name: "set_request_type",
+            description: "Set the patient's intended request type. Call this immediately when the patient's intent is known, before asking for other fields. This changes the UI to show the correct form.",
+            parameters: {
+              type: "OBJECT",
+              properties: {
+                requestType: {
+                  type: "STRING",
+                  enum: ["new_patient", "schedule", "reschedule", "referral", "billing", "other"]
+                }
+              },
+              required: ["requestType"]
+            }
+          },
+          {
             name: "finish_intake",
             description: "Call this ONLY after all required information is collected and the patient has confirmed the final summary.",
             parameters: {
@@ -44,7 +58,7 @@ class VoiceAssistant {
 
     this.systemInstruction = {
       parts: [{
-        text: "You are a patient intake assistant. Collect exactly these 7 fields: firstName, lastName, dateOfBirth, phone, email, patientType, requestText. Speak naturally. Ask one useful question at a time. Avoid unnecessary medical advice, diagnosing, or inventing info. Clarify uncertain values. Use the update_form_field tool when information is explicitly confirmed. Do not call finish_intake until all information is collected and the final summary is confirmed by the patient. Never claim that a submission happened."
+        text: "You are a patient intake assistant. First, determine their request type and call set_request_type. Then, collect exactly these fields: firstName, lastName, dateOfBirth, phone, email, patientType, requestText. Speak naturally. Ask one useful question at a time. Avoid unnecessary medical advice. Use the update_form_field tool when information is explicitly confirmed. Do not call finish_intake until all information is collected and the final summary is confirmed by the patient. Never claim that a submission happened."
       }]
     };
   }
@@ -107,11 +121,7 @@ class VoiceAssistant {
 
   async startVoiceFlow() {
     // If not past step 1, simulate selecting "Other" to proceed to form fields
-    if (window.PatientState && window.PatientState.currentStep < 2) {
-      const otherBtn = document.querySelector('.request-type-card[data-type="other"]');
-      if (otherBtn && window.selectRequestType) window.selectRequestType(otherBtn);
-      if (window.goToStep2) window.goToStep2();
-    }
+    // (Removed buggy fallback block)
     
     try {
       this.updateStatus('Connecting...');
@@ -233,8 +243,13 @@ class VoiceAssistant {
           }
         }
       }
-    } else if (message.toolCall) {
-      this.handleToolCall(message.toolCall);
+    }
+    
+    // The @google/genai Live API sends tool calls asynchronously in message.toolCall
+    if (message.toolCall && message.toolCall.functionCalls) {
+      for (const functionCall of message.toolCall.functionCalls) {
+        this.handleToolCall(functionCall);
+      }
     }
     
     // Check if interrupted by user
@@ -246,6 +261,11 @@ class VoiceAssistant {
         this.audioContext.close();
         this.audioContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
         const source = this.audioContext.createMediaStreamSource(this.mediaStream);
+        
+        const oldProcessor = this.scriptProcessor;
+        this.scriptProcessor = this.audioContext.createScriptProcessor(4096, 1, 1);
+        this.scriptProcessor.onaudioprocess = oldProcessor.onaudioprocess;
+        
         source.connect(this.scriptProcessor);
         this.scriptProcessor.connect(this.audioContext.destination);
         
@@ -256,42 +276,71 @@ class VoiceAssistant {
     }
   }
 
-  handleToolCall(toolCall) {
-    const functionCalls = toolCall.functionCalls;
-    if (!functionCalls) return;
+  handleToolCall(functionCall) {
+    if (!functionCall) return;
     
-    for (const call of functionCalls) {
-      if (call.name === 'update_form_field') {
-        const { field, value } = call.args;
-        this.updateDOMField(field, value);
-        
-        if (this.session) {
-          try {
-            this.session.send({
-              toolResponse: {
-                functionResponses: [{
-                  id: call.id,
-                  response: { result: "ok" }
-                }]
-              }
-            });
-          } catch(e) {}
+    console.log(`[VOICE TOOL] received: ${functionCall.name}`);
+    
+    if (functionCall.name === 'update_form_field') {
+      const { field, value } = functionCall.args || {};
+      this.updateDOMField(field, value);
+      
+      if (this.session) {
+        try {
+          this.session.sendToolResponse({
+            functionResponses: [{
+              id: functionCall.id || functionCall.name,
+              name: functionCall.name,
+              response: { result: "ok" }
+            }]
+          });
+        } catch(e) {
+          console.error('Error sending tool response:', e);
         }
-      } else if (call.name === 'finish_intake') {
-        if (this.session) {
-          try {
-            this.session.send({
-              toolResponse: {
-                functionResponses: [{
-                  id: call.id,
-                  response: { result: "ok" }
-                }]
-              }
-            });
-          } catch(e) {}
-        }
-        this.finishIntake();
       }
+    } else if (functionCall.name === 'set_request_type') {
+      console.log('[VOICE TOOL] set_request_type received');
+      const { requestType } = functionCall.args || {};
+      const card = document.querySelector(`.request-type-card[data-type="${requestType}"]`);
+      if (card && window.selectRequestType) {
+        console.log('[VOICE TOOL] Calling window.selectRequestType');
+        window.selectRequestType(card);
+        if (window.goToStep2) {
+          console.log('[VOICE TOOL] Calling window.goToStep2');
+          window.goToStep2();
+        }
+      } else {
+        console.log('[VOICE TOOL] Could not find card or selectRequestType for:', requestType);
+      }
+      
+      if (this.session) {
+        try {
+          this.session.sendToolResponse({
+            functionResponses: [{
+              id: functionCall.id || functionCall.name,
+              name: functionCall.name,
+              response: { result: "ok" }
+            }]
+          });
+        } catch(e) {
+          console.error('Error sending tool response:', e);
+        }
+      }
+    } else if (functionCall.name === 'finish_intake') {
+      if (this.session) {
+        try {
+          this.session.sendToolResponse({
+            functionResponses: [{
+              id: functionCall.id || functionCall.name,
+              name: functionCall.name,
+              response: { result: "ok" }
+            }]
+          });
+        } catch(e) {
+          console.error('Error sending tool response:', e);
+        }
+      }
+      this.finishIntake();
     }
   }
 
@@ -309,7 +358,12 @@ class VoiceAssistant {
       return;
     }
 
-    const input = document.getElementById(fieldId);
+    let actualId = fieldId;
+    if (fieldId === 'dateOfBirth') {
+      actualId = 'dob';
+    }
+
+    const input = document.getElementById(actualId);
     if (input) {
       let formatted = value;
       if (fieldId === 'email') {
@@ -317,6 +371,10 @@ class VoiceAssistant {
       }
       
       input.value = formatted;
+      
+      // Dispatch input and change events for reactivity
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      input.dispatchEvent(new Event('change', { bubbles: true }));
       
       if (window.PatientState) {
         window.PatientState[fieldId] = formatted;
