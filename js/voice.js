@@ -174,13 +174,32 @@ class VoiceAssistant {
           responseModalities: [Modality.AUDIO],
           systemInstruction: this.systemInstruction,
           tools: this.tools
+        },
+        callbacks: {
+          onopen: () => {},
+          onmessage: (message) => {
+            if (!this.isActive) return;
+            this.handleMessage(message);
+          },
+          onerror: (error) => {
+            console.error('Session error:', error);
+            if (this.isActive) {
+              this.updateStatus('Connection lost.');
+              this.stopAll();
+            }
+          },
+          onclose: (event) => {
+            console.log('Session closed:', event);
+            if (this.isActive) {
+              this.updateStatus('Connection lost.');
+              this.stopAll();
+            }
+          }
         }
       });
       
       this.updateStatus('Listening...');
       document.getElementById('voiceOrb')?.classList.add('is-listening');
-      
-      this.listenToSession();
 
     } catch (e) {
       console.error(e);
@@ -189,21 +208,6 @@ class VoiceAssistant {
     }
   }
   
-  async listenToSession() {
-    if (!this.session) return;
-    try {
-      for await (const message of this.session) {
-        if (!this.isActive) break;
-        this.handleMessage(message);
-      }
-    } catch (e) {
-      console.error('Session error or closed:', e);
-      if (this.isActive) {
-        this.updateStatus('Connection lost.');
-        this.stopAll();
-      }
-    }
-  }
 
   handleMessage(message) {
     if (message.serverContent && message.serverContent.modelTurn) {
