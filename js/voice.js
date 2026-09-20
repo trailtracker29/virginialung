@@ -123,14 +123,26 @@ class VoiceAssistant {
       this.audioContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
       const source = this.audioContext.createMediaStreamSource(this.mediaStream);
       
+      console.log('[DEBUG] Microphone stream started');
       // Use script processor for mic recording
       this.scriptProcessor = this.audioContext.createScriptProcessor(4096, 1, 1);
       source.connect(this.scriptProcessor);
       this.scriptProcessor.connect(this.audioContext.destination);
+      console.log('[DEBUG] Audio processor started');
       
+      let chunkCount = 0;
       this.scriptProcessor.onaudioprocess = (e) => {
-        if (!this.isActive || !this.session) return;
+        if (!this.isActive) return;
+        if (!this.session) {
+            if (chunkCount === 0) console.log('[DEBUG] First audio chunk received, but session is missing');
+            return;
+        }
         const pcmData = e.inputBuffer.getChannelData(0);
+
+        if (chunkCount === 0) {
+            console.log('[DEBUG] First audio chunk received with session present. Length:', pcmData.length);
+        }
+
         // Convert Float32 to Int16
         const int16Data = new Int16Array(pcmData.length);
         for (let i = 0; i < pcmData.length; i++) {
@@ -140,15 +152,17 @@ class VoiceAssistant {
         const b64 = this.arrayBufferToBase64(int16Data.buffer);
         
         try {
-          this.session.send({
-            realtimeInput: {
-              mediaChunks: [{
-                mimeType: "audio/pcm;rate=16000",
-                data: b64
-              }]
+          if (chunkCount === 0) console.log('[DEBUG] Calling session.sendRealtimeInput');
+          this.session.sendRealtimeInput({
+            audio: {
+              data: b64,
+              mimeType: 'audio/pcm;rate=16000'
             }
           });
-        } catch (err) {}
+        } catch (err) {
+          if (chunkCount === 0) console.error('Audio send error:', err);
+        }
+        chunkCount++;
       };
 
       // Fetch Ephemeral Token
