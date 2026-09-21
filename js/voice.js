@@ -18,6 +18,7 @@ class VoiceAssistant {
           {
             name: "update_form_field",
             description: "Synchronize a confirmed patient-provided value with the visible intake form. ALWAYS call this function after the patient provides or confirms a value for a form field. Do not merely repeat or acknowledge the value.",
+            behavior: "BLOCKING",
             parameters: {
               type: "OBJECT",
               properties: {
@@ -33,6 +34,7 @@ class VoiceAssistant {
           {
             name: "set_request_type",
             description: "The patient has stated their intended request type. ALWAYS call this function when the patient chooses or clearly states what type of request they need. Do not only acknowledge the request verbally.",
+            behavior: "BLOCKING",
             parameters: {
               type: "OBJECT",
               properties: {
@@ -47,6 +49,7 @@ class VoiceAssistant {
           {
             name: "finish_intake",
             description: "Call only after all required intake information has been collected and confirmed. This only moves the UI to the review step. It does not submit the case.",
+            behavior: "BLOCKING",
             parameters: {
               type: "OBJECT",
               properties: {}
