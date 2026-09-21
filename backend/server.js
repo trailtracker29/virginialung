@@ -60,7 +60,8 @@ app.get('/api/voice/token', async (req, res) => {
             sessionResumption: {},
             responseModalities: ['AUDIO']
           }
-        }
+        },
+        lockAdditionalFields: []
       }
     });
     res.json(tokenResponse);
