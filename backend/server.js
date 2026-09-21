@@ -44,8 +44,7 @@ app.get('/api/voice/token', async (req, res) => {
     
     // Create a dedicated v1beta client since authTokens.create is a v1beta endpoint
     const liveClient = new GoogleGenAI({ 
-      apiKey: process.env.GEMINI_API_KEY, 
-      httpOptions: { apiVersion: 'v1beta' } 
+      apiKey: process.env.GEMINI_API_KEY
     });
 
     // Create an expiration time roughly 30 minutes from now (in RFC3339 format)

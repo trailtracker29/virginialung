@@ -188,8 +188,7 @@ class VoiceAssistant {
       }
 
       const ai = new GoogleGenAI({
-          apiKey: ephemeralKey,
-          httpOptions: { apiVersion: 'v1alpha' }
+          apiKey: ephemeralKey
       });
       
       this.session = await ai.live.connect({
@@ -200,20 +199,27 @@ class VoiceAssistant {
           tools: this.tools
         },
         callbacks: {
-          onopen: () => {},
+          onopen: () => {
+            console.log('[VOICE] session opened');
+          },
           onmessage: (message) => {
+            console.log('[VOICE] session message received');
             if (!this.isActive) return;
             this.handleMessage(message);
           },
           onerror: (error) => {
-            console.error('Session error:', error);
+            console.error('[VOICE] session error:', error);
             if (this.isActive) {
               this.updateStatus('Connection lost.');
               this.stopAll();
             }
           },
           onclose: (event) => {
-            console.log('Session closed:', event);
+            console.log('[VOICE] session closed', {
+              code: event.code,
+              reason: event.reason,
+              wasClean: event.wasClean
+            });
             if (this.isActive) {
               this.updateStatus('Connection lost.');
               this.stopAll();
