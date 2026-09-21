@@ -266,6 +266,17 @@ class VoiceAssistant {
             args: fc.args
         }))
     );
+    console.log('[VOICE DEBUG] serverContent:', message.serverContent);
+    console.log('[VOICE DEBUG] modelTurn:', message.serverContent?.modelTurn);
+    console.log(
+      '[VOICE DEBUG] modelTurn parts:',
+      message.serverContent?.modelTurn?.parts?.map(part => ({
+        keys: Object.keys(part || {}),
+        hasFunctionCall: !!part?.functionCall,
+        functionCallName: part?.functionCall?.name,
+        functionCallArgs: part?.functionCall?.args
+      }))
+    );
 
     if (message.serverContent && message.serverContent.modelTurn) {
       const parts = message.serverContent.modelTurn.parts;
