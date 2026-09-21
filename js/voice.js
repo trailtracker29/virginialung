@@ -240,6 +240,16 @@ class VoiceAssistant {
   
 
   handleMessage(message) {
+    console.log('[VOICE DEBUG] message keys:', Object.keys(message || {}));
+    console.log('[VOICE DEBUG] toolCall:', message?.toolCall);
+    console.log('[VOICE DEBUG] functionCalls:',
+        message?.toolCall?.functionCalls?.map(fc => ({
+            id: fc.id,
+            name: fc.name,
+            args: fc.args
+        }))
+    );
+
     if (message.serverContent && message.serverContent.modelTurn) {
       const parts = message.serverContent.modelTurn.parts;
       if (parts) {
@@ -254,6 +264,10 @@ class VoiceAssistant {
     // The @google/genai Live API sends tool calls asynchronously in message.toolCall
     if (message.toolCall && message.toolCall.functionCalls) {
       for (const functionCall of message.toolCall.functionCalls) {
+        console.log('[VOICE TOOL DETECTED]', {
+            name: functionCall.name,
+            args: functionCall.args
+        });
         this.handleToolCall(functionCall);
       }
     }
@@ -286,6 +300,8 @@ class VoiceAssistant {
     if (!functionCall) return;
     
     console.log(`[VOICE TOOL] received: ${functionCall.name}`);
+    console.log('[VOICE TOOL HANDLER]', functionCall.name);
+    console.log('[VOICE TOOL ARGS]', functionCall.args);
     
     if (functionCall.name === 'update_form_field') {
       const { field, value } = functionCall.args || {};
@@ -306,8 +322,10 @@ class VoiceAssistant {
       }
     } else if (functionCall.name === 'set_request_type') {
       console.log('[VOICE TOOL] set_request_type received');
+      console.log('[VOICE TOOL] set_request_type requested:', functionCall.args);
       const { requestType } = functionCall.args || {};
       const card = document.querySelector(`.request-type-card[data-type="${requestType}"]`);
+      console.log('[VOICE TOOL] request card found:', card);
       if (card && window.selectRequestType) {
         console.log('[VOICE TOOL] Calling window.selectRequestType');
         window.selectRequestType(card);
@@ -358,6 +376,11 @@ class VoiceAssistant {
   }
 
   updateDOMField(fieldId, value) {
+    console.log('[VOICE TOOL] update_form_field:', {
+        fieldId,
+        value
+    });
+
     if (fieldId === 'patientType') {
       const type = value.toLowerCase().includes('existing') ? 'existing' : 'new';
       if (window.setPatientType) window.setPatientType(type);
@@ -370,6 +393,7 @@ class VoiceAssistant {
     }
 
     const input = document.getElementById(actualId);
+    console.log('[VOICE TOOL] DOM field:', input);
     if (input) {
       let formatted = value;
       if (fieldId === 'email') {
