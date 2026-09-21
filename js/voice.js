@@ -191,16 +191,31 @@ class VoiceAssistant {
           apiKey: ephemeralKey
       });
       
+      const liveConfig = {
+        responseModalities: [Modality.AUDIO],
+        systemInstruction: this.systemInstruction,
+        tools: this.tools
+      };
+
+      console.log('[VOICE TOOLS CONFIG]', {
+          tools: liveConfig?.tools,
+          toolCount: liveConfig?.tools?.length,
+          functionDeclarations:
+              liveConfig?.tools?.flatMap(t => t.functionDeclarations || []).map(fn => ({
+                  name: fn.name,
+                  description: fn.description,
+                  parametersJsonSchema: fn.parametersJsonSchema,
+                  parameters: fn.parameters
+              }))
+      });
+
       this.session = await ai.live.connect({
         model: 'gemini-3.8-live',
-        config: {
-          responseModalities: [Modality.AUDIO],
-          systemInstruction: this.systemInstruction,
-          tools: this.tools
-        },
+        config: liveConfig,
         callbacks: {
           onopen: () => {
             console.log('[VOICE] session opened');
+            console.log('[VOICE] Live tools configured:', liveConfig?.tools?.length || 0);
           },
           onmessage: (message) => {
             console.log('[VOICE] session message received');
