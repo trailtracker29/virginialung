@@ -17,7 +17,7 @@ class VoiceAssistant {
         functionDeclarations: [
           {
             name: "update_form_field",
-            description: "Updates a specific form field when the patient confirms an answer.",
+            description: "Synchronize a confirmed patient-provided value with the visible intake form. ALWAYS call this function after the patient provides or confirms a value for a form field. Do not merely repeat or acknowledge the value.",
             parameters: {
               type: "OBJECT",
               properties: {
@@ -32,7 +32,7 @@ class VoiceAssistant {
           },
           {
             name: "set_request_type",
-            description: "Set the patient's intended request type. Call this immediately when the patient's intent is known, before asking for other fields. This changes the UI to show the correct form.",
+            description: "The patient has stated their intended request type. ALWAYS call this function when the patient chooses or clearly states what type of request they need. Do not only acknowledge the request verbally.",
             parameters: {
               type: "OBJECT",
               properties: {
@@ -46,7 +46,7 @@ class VoiceAssistant {
           },
           {
             name: "finish_intake",
-            description: "Call this ONLY after all required information is collected and the patient has confirmed the final summary.",
+            description: "Call only after all required intake information has been collected and confirmed. This only moves the UI to the review step. It does not submit the case.",
             parameters: {
               type: "OBJECT",
               properties: {}
@@ -58,7 +58,7 @@ class VoiceAssistant {
 
     this.systemInstruction = {
       parts: [{
-        text: "You are a patient intake assistant. First, determine their request type and call set_request_type. Then, collect exactly these fields: firstName, lastName, dateOfBirth, phone, email, patientType, requestText. Speak naturally. Ask one useful question at a time. Avoid unnecessary medical advice. Use the update_form_field tool when information is explicitly confirmed. Do not call finish_intake until all information is collected and the final summary is confirmed by the patient. Never claim that a submission happened."
+        text: "You are the voice intake assistant for Virginia Lung.\n\nYou are connected to a live patient intake form on the right side of the screen.\n\nYou MUST use the provided tools to synchronize the form with the conversation.\n\nWhen the patient states or confirms their intended request type, ALWAYS call set_request_type before proceeding.\n\nWhen the patient provides or confirms a form value, ALWAYS call update_form_field with the appropriate fieldId and value.\n\nDo not merely acknowledge a form value verbally. Update the right-side form using update_form_field.\n\nAsk for one missing piece of information at a time.\n\nOnly update a field after the patient has clearly provided or confirmed that value.\n\nFor the request type:\n- appointment scheduling → use the schedule request type\n- new patient request → use the new_patient request type\n- other request → use the appropriate existing request type\n\nAfter all required information has been collected and confirmed, call finish_intake.\n\nfinish_intake ONLY moves the user to the review step. It must NEVER submit the case automatically.\n\nNever invent patient information.\n\nCollect exactly these fields: firstName, lastName, dateOfBirth, phone, email, patientType, requestText."
       }]
     };
   }
@@ -208,6 +208,8 @@ class VoiceAssistant {
                   parameters: fn.parameters
               }))
       });
+
+      console.log('[VOICE] Function calling mode:', liveConfig?.toolConfig);
 
       this.session = await ai.live.connect({
         model: 'gemini-3.8-live',
