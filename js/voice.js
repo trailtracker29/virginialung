@@ -278,6 +278,26 @@ class VoiceAssistant {
       }))
     );
 
+    console.log('[VOICE DEBUG] modelTurn keys:',
+      message.serverContent?.modelTurn
+        ? Object.keys(message.serverContent.modelTurn)
+        : undefined
+    );
+
+    const parts = message.serverContent?.modelTurn?.parts;
+    if (Array.isArray(parts)) {
+      parts.forEach((part, index) => {
+        console.log(`[VOICE DEBUG] part ${index} keys:`, Object.keys(part || {}));
+        console.log(`[VOICE DEBUG] part ${index} functionCall:`, part?.functionCall);
+        console.log(`[VOICE DEBUG] part ${index} text:`, part?.text);
+        console.log(`[VOICE DEBUG] part ${index} inlineData:`, part?.inlineData ? {
+          keys: Object.keys(part.inlineData),
+          mimeType: part.inlineData.mimeType,
+          hasData: !!part.inlineData.data
+        } : undefined);
+      });
+    }
+
     if (message.serverContent && message.serverContent.modelTurn) {
       const parts = message.serverContent.modelTurn.parts;
       if (parts) {
