@@ -5,6 +5,7 @@ const { createClient } = require('@supabase/supabase-js');
 const { GoogleGenAI } = require('@google/genai');
 const WorkflowEngine = require('./engine/core');
 const config = require('./config/virginialung');
+const smsService = require('./services/smsService');
 
 const app = express();
 
@@ -109,6 +110,17 @@ app.post('/api/intake', async (req, res) => {
     }
 
     res.status(200).json({ success: true, caseData, activities });
+
+    // Trigger SMS asynchronously after successful intake and database insertion
+    if (caseData && caseData.phone) {
+      smsService.sendSMS(
+        caseData.phone,
+        "Virginia Lung: Your request has been received and is under review."
+      ).catch(err => {
+        // Fallback error catch, though sendSMS handles its own exceptions
+        console.error('[SMS Fallback Catch]', err);
+      });
+    }
   } catch (error) {
     console.error('Intake processing error:', error);
     res.status(500).json({ success: false, error: error.message || 'Internal processing failed' });
