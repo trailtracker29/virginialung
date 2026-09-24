@@ -9,9 +9,23 @@ const smsService = require('./services/smsService');
 
 const app = express();
 
-const allowedOrigins = process.env.ALLOWED_ORIGINS 
+const defaultAllowed = [
+  'http://localhost:3000', 
+  'http://localhost:5500', 
+  'http://127.0.0.1:5500', 
+  'https://virginialung.vercel.app'
+];
+
+let allowedOrigins = process.env.ALLOWED_ORIGINS 
   ? process.env.ALLOWED_ORIGINS.split(',') 
-  : ['http://localhost:3000', 'http://localhost:5500', 'http://127.0.0.1:5500'];
+  : defaultAllowed;
+
+if (process.env.FRONTEND_URL && !allowedOrigins.includes(process.env.FRONTEND_URL)) {
+  allowedOrigins.push(process.env.FRONTEND_URL);
+}
+if (process.env.STAFF_FRONTEND_URL && !allowedOrigins.includes(process.env.STAFF_FRONTEND_URL)) {
+  allowedOrigins.push(process.env.STAFF_FRONTEND_URL);
+}
 
 app.use(cors({
   origin: function (origin, callback) {
@@ -20,6 +34,7 @@ app.use(cors({
     if (!origin || allowedOrigins.includes(origin) || process.env.NODE_ENV !== 'production') {
       callback(null, true);
     } else {
+      console.error(`CORS blocked origin: ${origin}`);
       callback(new Error('Not allowed by CORS'));
     }
   },
