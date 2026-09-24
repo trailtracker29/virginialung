@@ -10,7 +10,10 @@ window.AppConfig = {
   API_BASE_URL: 'https://virginialung-backend.onrender.com',
   
   // Production n8n Webhook for Intake
-  INTAKE_WEBHOOK_URL: null
+  INTAKE_WEBHOOK_URL: null,
+
+  // Voice Configuration
+  VOICE_NAME: 'Aoede'
 };
 
 // ── Toast Notifications ───────────────────────────────────────────────────────

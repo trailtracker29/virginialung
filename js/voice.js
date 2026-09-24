@@ -224,13 +224,15 @@ class VoiceAssistant {
       const voiceName = (window.AppConfig && window.AppConfig.VOICE_NAME) || 'Aoede';
       
       const liveConfig = {
-        responseModalities: [Modality.AUDIO],
         systemInstruction: this.systemInstruction,
         tools: this.tools,
-        speechConfig: {
-          voiceConfig: {
-            prebuiltVoiceConfig: {
-              voiceName: voiceName
+        generationConfig: {
+          responseModalities: [Modality.AUDIO],
+          speechConfig: {
+            voiceConfig: {
+              prebuiltVoiceConfig: {
+                voiceName: voiceName
+              }
             }
           }
         }
