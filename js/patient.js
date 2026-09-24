@@ -14,6 +14,8 @@ const PatientState = {
   aiResult: null,
   submittedCaseId: null,
   patientCaseId: null,   // track the case ID in AppState
+  confirmationShown: false,
+  patientConfirmed: false,
 };
 
 // ── View Navigation ───────────────────────────────────────────────────────────

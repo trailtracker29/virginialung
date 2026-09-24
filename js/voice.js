@@ -11,13 +11,12 @@ class VoiceAssistant {
     this.mediaStream = null;
     this.scriptProcessor = null;
     
-    // Tools defined for Gemini Live
     this.tools = [
       {
         functionDeclarations: [
           {
             name: "update_form_field",
-            description: "Synchronize a confirmed patient-provided value with the visible intake form. ALWAYS call this function after the patient provides or confirms a value for a form field. Do not merely repeat or acknowledge the value.",
+            description: "Synchronize a confirmed patient-provided value with the internal structured data. ALWAYS call this function after the patient provides or confirms a value for a field. Do not merely repeat or acknowledge the value.",
             behavior: "BLOCKING",
             parameters: {
               type: "OBJECT",
@@ -33,7 +32,7 @@ class VoiceAssistant {
           },
           {
             name: "set_request_type",
-            description: "The patient has stated their intended request type. ALWAYS call this function when the patient chooses or clearly states what type of request they need. Do not only acknowledge the request verbally.",
+            description: "The patient has stated their intended request type. ALWAYS call this function when the patient chooses or clearly states what type of request they need.",
             behavior: "BLOCKING",
             parameters: {
               type: "OBJECT",
@@ -47,8 +46,26 @@ class VoiceAssistant {
             }
           },
           {
-            name: "finish_intake",
-            description: "Call only after all required intake information has been collected and confirmed. This only moves the UI to the review step. It does not submit the case.",
+            name: "show_confirmation_view",
+            description: "Call this once all required intake information has been collected, BEFORE you read the summary to the patient. It displays the collected data on the screen for them to review visually.",
+            behavior: "BLOCKING",
+            parameters: {
+              type: "OBJECT",
+              properties: {}
+            }
+          },
+          {
+            name: "mark_patient_confirmed",
+            description: "Call this function ONLY when the patient explicitly and verbally states that the summary information is correct.",
+            behavior: "BLOCKING",
+            parameters: {
+              type: "OBJECT",
+              properties: {}
+            }
+          },
+          {
+            name: "submit_intake",
+            description: "Call this to submit the case to the backend. It will fail unless mark_patient_confirmed was called first.",
             behavior: "BLOCKING",
             parameters: {
               type: "OBJECT",
@@ -61,7 +78,7 @@ class VoiceAssistant {
 
     this.systemInstruction = {
       parts: [{
-        text: "You are the voice intake assistant for Virginia Lung.\n\nYou are connected to a live patient intake form on the right side of the screen.\n\nYou MUST use the provided tools to synchronize the form with the conversation.\n\nWhen the patient states or confirms their intended request type, ALWAYS call set_request_type before proceeding.\n\nWhen the patient provides or confirms a form value, ALWAYS call update_form_field with the appropriate fieldId and value.\n\nDo not merely acknowledge a form value verbally. Update the right-side form using update_form_field.\n\nAsk for one missing piece of information at a time.\n\nOnly update a field after the patient has clearly provided or confirmed that value.\n\nFor the request type:\n- appointment scheduling → use the schedule request type\n- new patient request → use the new_patient request type\n- other request → use the appropriate existing request type\n\nAfter all required information has been collected and confirmed, call finish_intake.\n\nfinish_intake ONLY moves the user to the review step. It must NEVER submit the case automatically.\n\nNever invent patient information.\n\nCollect exactly these fields: firstName, lastName, dateOfBirth, phone, email, patientType, requestText."
+        text: "You are the AI front-desk receptionist for Virginia Lung. Act naturally, professionally, warmly, and calmly. Keep your responses concise and conversational. Do not sound robotic or like a form-reader.\n\nYou MUST use the provided tools to synchronize the internal data with the conversation.\n\nWhen the patient states or confirms their intended request type, ALWAYS call set_request_type.\n\nWhen the patient provides or confirms a value, ALWAYS call update_form_field with the appropriate fieldId and value.\n\nAsk for missing information naturally, one or two pieces at a time. Acknowledge answers smoothly (e.g. 'Got it, and what is your phone number?').\n\nCollect exactly these fields: firstName, lastName, dateOfBirth, phone, email, patientType, requestText.\n\nOnce ALL required information is collected:\n1. Call show_confirmation_view to display the summary on the screen.\n2. Read a complete, human-readable summary of the information aloud to the patient.\n3. Ask them 'Is all of this correct?'.\n\nIf the patient says NO and wants to correct something, ask what needs to be changed, use update_form_field to correct it, read the corrected info again, and ask for confirmation again.\n\nWhen the patient explicitly confirms the information is correct, you MUST call mark_patient_confirmed.\nONLY after calling mark_patient_confirmed, you may call submit_intake. Never invent patient information."
       }]
     };
   }
@@ -95,6 +112,7 @@ class VoiceAssistant {
 
   stopAll() {
     this.isActive = false;
+    document.body.classList.remove('showing-confirmation');
     if (this.session) {
       try { this.session.close(); } catch (e) {}
       this.session = null;
@@ -130,7 +148,16 @@ class VoiceAssistant {
       this.updateStatus('Connecting...');
       
       // Request mic
-      this.mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      try {
+        this.mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      } catch (micErr) {
+        if (micErr.name === 'NotAllowedError' || micErr.name === 'PermissionDeniedError') {
+          throw new Error('Microphone permission denied. Please allow microphone access to use the voice assistant.');
+        } else if (micErr.name === 'NotFoundError' || micErr.name === 'DevicesNotFoundError') {
+          throw new Error('No microphone found. Please connect a microphone to use the voice assistant.');
+        }
+        throw micErr;
+      }
       
       // Audio context setup (Gemini Live expects 16kHz PCM)
       this.audioContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
@@ -194,10 +221,19 @@ class VoiceAssistant {
           apiKey: ephemeralKey
       });
       
+      const voiceName = (window.AppConfig && window.AppConfig.VOICE_NAME) || 'Aoede';
+      
       const liveConfig = {
         responseModalities: [Modality.AUDIO],
         systemInstruction: this.systemInstruction,
-        tools: this.tools
+        tools: this.tools,
+        speechConfig: {
+          voiceConfig: {
+            prebuiltVoiceConfig: {
+              voiceName: voiceName
+            }
+          }
+        }
       };
 
       console.log('[VOICE TOOLS CONFIG]', {
@@ -253,7 +289,13 @@ class VoiceAssistant {
 
     } catch (e) {
       console.error(e);
-      this.updateStatus('Error connecting to Voice Assistant.');
+      if (e.message && e.message.includes('Microphone')) {
+        this.updateStatus(e.message);
+      } else if (e.message && e.message.includes('No microphone')) {
+        this.updateStatus(e.message);
+      } else {
+        this.updateStatus('Error connecting to Voice Assistant.');
+      }
       this.stopAll();
     }
   }
@@ -401,7 +443,12 @@ class VoiceAssistant {
           console.error('Error sending tool response:', e);
         }
       }
-    } else if (functionCall.name === 'finish_intake') {
+    } else if (functionCall.name === 'show_confirmation_view') {
+      if (window.PatientState) {
+        window.PatientState.confirmationShown = true;
+        window.PatientState.patientConfirmed = false;
+      }
+      
       if (this.session) {
         try {
           this.session.sendToolResponse({
@@ -415,14 +462,75 @@ class VoiceAssistant {
           console.error('Error sending tool response:', e);
         }
       }
-      this.finishIntake();
+      this.showConfirmationView();
+    } else if (functionCall.name === 'mark_patient_confirmed') {
+      if (window.PatientState) {
+        window.PatientState.patientConfirmed = true;
+      }
+      
+      if (this.session) {
+        try {
+          this.session.sendToolResponse({
+            functionResponses: [{
+              id: functionCall.id || functionCall.name,
+              name: functionCall.name,
+              response: { result: "ok", message: "Patient confirmed. You may now call submit_intake." }
+            }]
+          });
+        } catch(e) {
+          console.error('Error sending tool response:', e);
+        }
+      }
+    } else if (functionCall.name === 'submit_intake') {
+      const isConfirmationShown = window.PatientState && window.PatientState.confirmationShown === true;
+      const isConfirmed = window.PatientState && window.PatientState.patientConfirmed === true;
+      
+      if (!isConfirmationShown || !isConfirmed) {
+        console.warn('Blocked premature submission. Missing state:', { isConfirmationShown, isConfirmed });
+        if (this.session) {
+          try {
+            this.session.sendToolResponse({
+              functionResponses: [{
+                id: functionCall.id || functionCall.name,
+                name: functionCall.name,
+                response: { error: "Submission blocked. You must call show_confirmation_view, wait for the user to confirm, and call mark_patient_confirmed first." }
+              }]
+            });
+          } catch(e) {}
+        }
+        return;
+      }
+
+      if (this.session) {
+        try {
+          this.session.sendToolResponse({
+            functionResponses: [{
+              id: functionCall.id || functionCall.name,
+              name: functionCall.name,
+              response: { result: "ok" }
+            }]
+          });
+        } catch(e) {
+          console.error('Error sending tool response:', e);
+        }
+      }
+      this.submitIntake();
     }
   }
 
-  finishIntake() {
-    this.stopAll();
+  showConfirmationView() {
     if (window.goToStep6) {
+      document.body.classList.add('showing-confirmation');
+      const wrapper = document.getElementById('stepsWrapper');
+      if (wrapper) wrapper.classList.remove('hidden');
       window.goToStep6();
+    }
+  }
+
+  submitIntake() {
+    this.stopAll();
+    if (window.submitCase) {
+      window.submitCase();
     }
   }
 
@@ -459,10 +567,17 @@ class VoiceAssistant {
       
       if (window.PatientState) {
         window.PatientState[fieldId] = formatted;
+        // If a field is updated, invalidate the confirmed state
+        window.PatientState.patientConfirmed = false;
       }
       
       input.classList.add('field-confirmed');
       setTimeout(() => input.classList.remove('field-confirmed'), 2000);
+      
+      // If we are currently showing the confirmation screen, rebuild it so changes are visible instantly
+      if (document.body.classList.contains('showing-confirmation') && window.buildReview) {
+        window.buildReview();
+      }
     }
   }
 
@@ -542,4 +657,13 @@ class VoiceAssistant {
 const voiceAssistant = new VoiceAssistant();
 document.addEventListener('DOMContentLoaded', () => {
   voiceAssistant.init();
+  // Auto-start voice mode when patient portal opens
+  setTimeout(() => {
+    if (!voiceAssistant.isActive) {
+      voiceAssistant.toggle().catch(err => {
+        console.error("Auto-start failed, likely due to mic permissions:", err);
+        voiceAssistant.updateStatus('Microphone permission required. Please click Start Voice Mode.');
+      });
+    }
+  }, 500);
 });
